@@ -51,7 +51,20 @@ def retrieve_from_datamall(token: str, path: str, method: str = 'GET', payload: 
 
     if response['status'] == '200':
         jsonObj = json.loads(content)
-        return pd.DataFrame(jsonObj['value'])
+        df = pd.DataFrame(jsonObj['value'])
+        final_df = df
+        skip = 0
+        while len(df) == 500:
+            skip += 500
+            new_uri = f'{uri}?$skip={skip}'            
+            new_response, new_content = h.request(new_uri, method, body, headers)
+            if new_response['status'] != '200':
+                raise Exception(f"API Request Error {new_response['status']}: {requests.status_codes._codes[int(new_response['status'])][0].replace('_', ' ').title()}")
 
+            new_jsonObj = json.loads(new_content)
+            df = pd.DataFrame(new_jsonObj['value'])
+            final_df = pd.concat([final_df,df])
+
+        return final_df
     else:
         raise Exception(f"API Request Error {response['status']}: {requests.status_codes._codes[int(response['status'])][0].replace('_', ' ').title()}")
