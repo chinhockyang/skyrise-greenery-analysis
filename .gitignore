@@ -2,6 +2,11 @@
 .Rhistory
 .RData
 .Ruserdata
-project.Rproj
+.DS_Store
+
+data/
 
 /python_files/venv
+/python_files/.env
+/python_files/.ipynb_checkpoints
+/python_files/__pycache__
