@@ -7,75 +7,83 @@ import json
 import requests
 import httplib2 as http
 
+# String Processing Tools
+import re
+
 # Geospatial
 import geopandas as gpd
 import geojson
+from fiona.drvsupport import supported_drivers
 from shapely.geometry import Polygon, MultiPolygon, shape
 
+# --------------------------- Data.gov Functions ---------------------------
 
-# --------------------------- LTA Datamall API Functions ---------------------------
-
-def retrieve_from_datamall(token: str, path: str, method: str = 'GET', payload: dict = {}) -> pd.DataFrame:
+def load_kml_file_as_df(path: str) -> pd.DataFrame:
     """
-    Function to fetch data from LTA Datamall
+    Function to read KML Files downloaded from Data.gov.sg as DataFrame
 
     Parameters
     ----------
-    token: str
-        API Token
-
     path: str
-        The end-point of the API request to be sent
+        File Path of the KML File
+    """
+    supported_drivers['KML'] = 'rw'
+    df = gpd.read_file(path, driver='KML')
+    return df
 
-    method: str, optional
-        The type of API requests to be made (default to GET)
 
-    payload: dict, optional
-        Dictionary of the API Parameters
+def process_raw_df_from_kml(df: pd.DataFrame, *keys) -> pd.DataFrame:
+    """
+    Function to clean and process Raw DataFrames obtained from Data.gov's KML files
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        DataFrame derived from Data.gov's KML File
+
+    keys: str
+        Column Names (Raw Capitalise form) to be extracted from df's "Description" columns
 
     """
-    headers = {
-        'AccountKey': token,
-        'accept': 'application/json'
-    }
+    master_dct = {}
+    for key in keys:
+        master_dct[key] = {}
 
-    #Get handle to http
-    h = http.Http()
+    for idx, row in df.iterrows():
+        text = row["Description"]
 
-    # Convert payload to string
-    body = str(payload)
+        re_tags_to_remove = [
+            "<[/]*center>",
+            "<[/]*table>",
+            "<[/]*em>",
+            "<[/]*th\s*[\w,\d,\#,\=,\",\',\s]*>",
+            "<tr>Attributes</tr>",
+            ","
+        ]
+        for regex in re_tags_to_remove:
+            text = re.sub(regex, "", text)
+
+        text = text.strip()
+        text = re.sub(r"<tr\s*[\w,\d,\#,\=,\",\']*>", "<tr>", text)
+
+        re_tags_to_replace = {
+            "\s*<[/]*tr>\s*" : "",
+            "\s*<td>\s*" : ":",
+            "\s*</td>\s*" : ", ",
+        }
+        for old_regex, new_regex in re_tags_to_replace.items():
+            text = re.sub(old_regex, new_regex, text)
+
+        lst_of_attributes = text.split(", ")
+        dct_of_attributes = {i.split(":")[0]:i.split(":")[1] for i in lst_of_attributes if i != ""}
+
+        for key in dct_of_attributes.keys():
+            master_dct[key][row["Name"]] = dct_of_attributes[key]
     
-    # Standardise Path
-    if len(path) <= 1:
-        raise Exception("No path is provided")
-    if path[0] == "/":
-        path = path[1:]
+    for key in master_dct.keys():
+        df[key] = df["Name"].map(master_dct[key])
 
-    # Full request uri
-    uri = f'http://datamall2.mytransport.sg/ltaodataservice/{path}'
-
-    #Obtain results
-    response, content = h.request(uri, method, body, headers)
-
-    if response['status'] == '200':
-        jsonObj = json.loads(content)
-        df = pd.DataFrame(jsonObj['value'])
-        final_df = df
-        skip = 0
-        while len(df) == 500:
-            skip += 500
-            new_uri = f'{uri}?$skip={skip}'            
-            new_response, new_content = h.request(new_uri, method, body, headers)
-            if new_response['status'] != '200':
-                raise Exception(f"API Request Error {new_response['status']}: {requests.status_codes._codes[int(new_response['status'])][0].replace('_', ' ').title()}")
-
-            new_jsonObj = json.loads(new_content)
-            df = pd.DataFrame(new_jsonObj['value'])
-            final_df = pd.concat([final_df,df])
-
-        return final_df
-    else:
-        raise Exception(f"API Request Error {response['status']}: {requests.status_codes._codes[int(response['status'])][0].replace('_', ' ').title()}")
+    return df
 
 # --------------------------- OneMap API Functions ---------------------------
 
@@ -209,3 +217,69 @@ def retrieve_onemap_population_data(lst_of_area_names: list, token: str, path: s
     df_output.reset_index(inplace=True, drop=True)
     df_output["planning_area"] = df_output["planning_area"].apply(lambda x: x.upper())
     return df_output
+
+
+
+# --------------------------- LTA Datamall API Functions [ARCHIVED] ---------------------------
+
+def retrieve_from_datamall(token: str, path: str, method: str = 'GET', payload: dict = {}) -> pd.DataFrame:
+    """
+    Function to fetch data from LTA Datamall
+
+    Parameters
+    ----------
+    token: str
+        API Token
+
+    path: str
+        The end-point of the API request to be sent
+
+    method: str, optional
+        The type of API requests to be made (default to GET)
+
+    payload: dict, optional
+        Dictionary of the API Parameters
+
+    """
+    headers = {
+        'AccountKey': token,
+        'accept': 'application/json'
+    }
+
+    #Get handle to http
+    h = http.Http()
+
+    # Convert payload to string
+    body = str(payload)
+    
+    # Standardise Path
+    if len(path) <= 1:
+        raise Exception("No path is provided")
+    if path[0] == "/":
+        path = path[1:]
+
+    # Full request uri
+    uri = f'http://datamall2.mytransport.sg/ltaodataservice/{path}'
+
+    #Obtain results
+    response, content = h.request(uri, method, body, headers)
+
+    if response['status'] == '200':
+        jsonObj = json.loads(content)
+        df = pd.DataFrame(jsonObj['value'])
+        final_df = df
+        skip = 0
+        while len(df) == 500:
+            skip += 500
+            new_uri = f'{uri}?$skip={skip}'            
+            new_response, new_content = h.request(new_uri, method, body, headers)
+            if new_response['status'] != '200':
+                raise Exception(f"API Request Error {new_response['status']}: {requests.status_codes._codes[int(new_response['status'])][0].replace('_', ' ').title()}")
+
+            new_jsonObj = json.loads(new_content)
+            df = pd.DataFrame(new_jsonObj['value'])
+            final_df = pd.concat([final_df,df])
+
+        return final_df
+    else:
+        raise Exception(f"API Request Error {response['status']}: {requests.status_codes._codes[int(response['status'])][0].replace('_', ' ').title()}")
