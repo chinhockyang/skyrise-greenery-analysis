@@ -13,7 +13,7 @@ source("1_initial_exploration.R")
 
 # -------------- 1. Load BCA Energy Dataset  --------------
 
-df_bca <- read.csv("data/listing-of-building-energy-performance-data-2019.csv", colClasses=c("postal_code"="character"))
+df_bca <- read.csv("data/building_energy_performance_data_2019.csv", colClasses=c("postal_code"="character"))
 
 df_bca <- df_bca %>% filter((!is.na(latitude)) & (!is.na(longitude)))
 
