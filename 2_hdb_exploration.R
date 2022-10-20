@@ -48,11 +48,35 @@ sf_skyrise_hdb <- sf_hdb %>% filter(
 qtm(sf_skyrise_hdb)
 
 kf <- Kest(as.ppp(sf_skyrise_hdb$geometry), correction = 'border')
+plot(kf, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
 kf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Kest,correction="border")
 plot(kf.env)
 
 lf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Lest,correction="border")
+lf <- Lest(as.ppp(sf_skyrise_hdb$geometry), main=NULL,correction="border")
+plot(lf, . -r ~ r, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE, inset=c(1.01, 0)))
+
+
 plot(lf.env)
 
-gf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Lest,correction="border")
+gf <- Gest(as.ppp(sf_skyrise_hdb$geometry), main=NULL,correction="border")
+pcf(as.ppp(sf_skyrise_hdb$geometry))
+gf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Gest,correction="border")
 plot(gf.env)
+
+# -------------- Density-Related Skyrise HDB Analysis --------------
+
+library(oldtmaptools)
+
+choose_bw <- function(spdf) { 
+  X <- st_coordinates(spdf) 
+  sigma <- c(sd(X[,1]),sd(X[,2])) * (2 / (3 * nrow(X))) ^ (1/6) 
+  return(sigma/1000)
+}
+
+breach_dens <- smooth_map(sf_skyrise_hdb, bandwidth = choose_bw(sf_skyrise_hdb$geometry))
+
+tmap_mode('view')
+  tm_shape(breach_dens$raster) + tm_raster() +
+  tm_shape(sf_subzone) +tm_borders()
+  
