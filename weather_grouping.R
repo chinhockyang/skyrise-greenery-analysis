@@ -34,15 +34,13 @@ temp_data <- temp_data[!is.na(temp_data$mean_temp), ]
 # retrieve 2019 temp data
 temp_2019 <- temp_data %>% filter(year==2019)
 
-# add coordinates
-temp_2019 <- merge(temp_2019, sf_weather_stations, all.x=T )
-
-
 # version1: mean temp in each season for each weather stations
 temp_grouped_seasons <- temp_2019 %>% group_by(station, seasons) %>% summarise_at(vars(mean_temp), list(mean))
 # version2: no seasons grouping to get 1 temp for each station
 temp_grouped <- temp_2019 %>% group_by(station) %>% summarise_at(vars(mean_temp), list(mean))
 
+# add coordinates
+temp_grouped <- merge(temp_grouped, sf_weather_stations, all.x=T )
 
 write.csv(temp_grouped,"data/grouped_temp_2019.csv", row.names = FALSE)
 
@@ -69,12 +67,12 @@ rain_data <- rain_data[!is.na(rain_data$rainfall), ]
 # retrieve 2019 temp data
 rain_2019 <- rain_data %>% filter(year==2019)
 
-# add coordinates
-rain_2019 <- merge(rain_2019, sf_weather_stations, all.x=T )
-
 # version1: sum of rainfall in each season for each weather stations every year
-rain_grouped_seasons <- rain_data %>% group_by(station, seasons) %>% summarise_at(vars(rainfall), list(sum))
+rain_grouped_seasons <- rain_2019 %>% group_by(station, seasons) %>% summarise_at(vars(rainfall), list(sum))
 # version2: yearly rainfall sum for each station
-rain_grouped <- rain_data %>% group_by(station) %>% summarise_at(vars(rainfall), list(sum))
+rain_grouped <- rain_2019 %>% group_by(station) %>% summarise_at(vars(rainfall), list(sum))
+
+# add coordinates
+rain_grouped <- merge(rain_grouped, sf_weather_stations, all.x=T )
 
 write.csv(rain_grouped,"data/grouped_rainfall_2019.csv", row.names = FALSE)
