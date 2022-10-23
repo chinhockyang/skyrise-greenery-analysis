@@ -72,7 +72,6 @@ plot(kf.env)
 lf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Lest,correction="border")
 lf <- Lest(as.ppp(sf_skyrise_hdb$geometry), main=NULL,correction="border")
 plot(lf.env)
-
 plot(lf, . -r ~ r, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE, inset=c(1.01, 0)))
 
 
