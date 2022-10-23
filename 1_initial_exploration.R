@@ -9,7 +9,7 @@ library(sf)
 library(tmap)
 library(ggplot2)
 library(tmaptools)
-# tmaptools::palette_explorer()
+tmaptools::palette_explorer()
 
 source("constants.R")
 
