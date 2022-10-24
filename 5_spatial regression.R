@@ -102,6 +102,8 @@ sf_subzone_w_skyrise_greenery_info <- subset(sf_subzone_w_skyrise_greenery_info,
 
 sf_subzone_w_skyrise_greenery_info$density <- sf_subzone_w_skyrise_greenery_info$n / sf_subzone_w_skyrise_greenery_info$area_km2
 
+hist(sf_subzone_w_skyrise_greenery_info$n, main=NULL)
+
 # Choropleth Chart showing Number of Skyrise Greenery HDBs across Subzones
 tmap_mode('view')
 tm_shape(sf_subzone_w_skyrise_greenery_info) + 
@@ -163,6 +165,7 @@ plot(mc)
 
 #The function of Local Moran's I  
 # Mapping Local Moran's I
+sp_subzone_skyrise_info.utm$lI <- localmoran(sp_subzone_skyrise_info.utm$n,sp_subzone_skyrise_info.lw, zero.policy = TRUE)[, 1]
 sp_subzone_skyrise_info.utm$lI2 <- localmoran(sp_subzone_skyrise_info.utm$n,sp_subzone_skyrise_info.lw2, zero.policy = TRUE)[, 1]
 
 # for queen
