@@ -1,16 +1,5 @@
 # -------------- Load Libraries and Variables --------------
 
-library(rgdal)
-library(dplyr)
-library(tidyr)
-library(sf)
-library(tmap)
-library(ggplot2)
-library(tmaptools)
-# tmaptools::palette_explorer()
-
-library(stringr)
-require(spatstat)
 library(raster)
 
 source("constants.R")
@@ -24,9 +13,22 @@ sf_aedes_regions <- st_as_sf(aedes_regions)
 sf_aedes_regions <- st_transform(sf_aedes_regions, crs=3414)
 head(sf_aedes_regions)
 
-qtm(sf_aedes_regions)
 
-# -------------- EDA: Skyrise HDB that are within Aedes Region --------------
+tmap_mode("plot")
+tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.4) + tm_borders(col="grey", alpha=0.5) +
+  tm_shape(sf_skyrise_hdb) + tm_dots(col="red") +
+  tm_shape(st_buffer(sf_skyrise_hdb, 100)) + tm_fill(col="yellow", alpha=0.5) + tm_borders(col="orange") +
+  tm_shape(sf_aedes_regions) + tm_fill(col="green", alpha = 0.7) + tm_borders(col="grey", alpha=0.9) +
+  tm_style(global.style) +
+  tm_layout(
+    title = "Aedes Hotspot and Skyrise Greenery HDB", 
+    title.size = tm_layout.title.size, title.position=tm_layout.title.position, title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, inner.margins=tm_layout.inner.margins
+  ) +  
+  tm_legend(position=c("right", "bottom"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+
+# -------------- EDA: Skyrise HDB that are within 100 meters from Aedes Hotspots --------------
 
 sf_skyrise_hdb_within_aedes_regions <- st_join(st_buffer(sf_skyrise_hdb, 100), sf_aedes_regions, st_intersects) %>% 
                                             filter(!is.na(desc))
@@ -50,12 +52,15 @@ sf_skyrise_hdb_near_aedes_grouped$label <- "Near Aedes Hotspot"
 sf_skyrise_hdb_not_near_aedes_grouped$label <- "Not Near Aedes Hotspot"
 
 ggplot(rbind(sf_skyrise_hdb_near_aedes_grouped, sf_skyrise_hdb_not_near_aedes_grouped)) +
-  geom_bar(aes(x=type, y=count, fill=label), position="dodge", stat="identity")
+  geom_bar(aes(x=type, y=count, fill=label), position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=90)) +
+  ggtitle("Skyrise Greenery HDB Buildings and Proximity to Aedes Hotspot") +
+  labs(x = "Type", y = "Count")
 
 
 # Locations of HDB near Aedes and Not-Near Aedes Regions
-tm_shape(sf_skyrise_hdb) + 
-  tm_symbols(col="near_aedes_region", size=0.6, palette="RdYlGn", border.alpha=1)
+tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.4) + tm_borders(col="grey", alpha=0.5) +
+tm_shape(sf_skyrise_hdb) + tm_symbols(col="near_aedes_region", size=0.6, palette="RdYlGn", border.alpha=1)
 
 
 # Attribute Differences btwn Residential HDB near Aedes and Not-Near Aedes Regions
@@ -72,7 +77,7 @@ sf_skyrise_hdb %>% filter(type=="Residential") %>%
           n_distinct(POSTAL_CODE)
       )
 
-# -------------- EDA: Aedes Hotspots --------------
+# -------------- EDA: Exploring Density using the Centroid of Aedes Hotspots --------------
 
 sf_aedes_regions_centroid <- st_centroid(sf_aedes_regions)
 
@@ -82,12 +87,6 @@ tmap_mode('view')
 tm_shape(aedes_dens$raster) + tm_raster() +
   tm_shape(sf_planning_area) +tm_borders(alpha=0.5) +
   tm_shape(sf_skyrise_hdb) + tm_symbols(col="near_aedes_region", size=0.6, palette="RdYlGn", border.alpha=1)
-
-# Quadrat
-Q_aedes <- quadratcount(as.ppp(sf_aedes_regions_centroid), nx=6, ny=3)
-Q_aedes.d <- intensity(Q_aedes)
-plot(intensity(Q_aedes, image=TRUE), main=NULL, las=1)  # Plot density raster
-plot(as.ppp(sf_aedes_regions_centroid), pch=20, cex=0.6, col=rgb(0,0,0,.5), add=TRUE)  # Add points
 
 # Area of each planning area
 sf_planning_area$sqm <- st_area(sf_planning_area)
@@ -107,11 +106,20 @@ sf_planning_area_w_aedes_hotspots <- sf_planning_area_w_aedes_hotspots %>%
 sf_planning_area_w_aedes_hotspots$aedes_hotspot_density <- sf_planning_area_w_aedes_hotspots$n / sf_planning_area_w_aedes_hotspots$sqkm
 
 tm_shape(sf_planning_area_w_aedes_hotspots) +
-  tm_polygons(col="aedes_hotspot_density", alpha=0.3) + tm_borders(alpha=0.9)
+  tm_polygons(col="aedes_hotspot_density") + tm_borders(alpha=0.9) +
+  tm_shape(sf_skyrise_hdb) + tm_symbols(col="near_aedes_region", size=0.6, palette="RdYlGn", border.alpha=1)
 
 
-# -------------- EDA: Density/Distance EGDA on Skyrise HDB Near Aedes Hotspot --------------
+# -------------- EDA: Distance-based EGDA on Aedes Hotspot and HDB near it --------------
 
+# Aedes Hotspot [K-Function]
+kf_aedes_hotspot <- Kest(as.ppp(sf_aedes_regions_centroid), correction = 'border')
+plot(kf_aedes_hotspot, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
+kf_aedes_hotspot.env <- envelope(as.ppp(sf_aedes_regions_centroid),Kest,correction="border")
+plot(kf_aedes_hotspot.env)
+
+
+# HDB near Aedes Hotspot
 # K-Function
 kf_aedes <- Kest(as.ppp(sf_skyrise_hdb %>% filter(near_aedes_region == 1)), correction = 'border')
 plot(kf_aedes, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
@@ -122,10 +130,11 @@ plot(kf_aedes.env)
 lf_aedes.env <- envelope(as.ppp(sf_skyrise_hdb %>% filter(near_aedes_region == 1)),Lest,correction="border")
 lf_aedes <- Lest(as.ppp(sf_skyrise_hdb %>% filter(near_aedes_region == 1)), main=NULL,correction="border")
 plot(lf_aedes.env)
-plot(lf_aedes, . -r ~ r, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE, inset=c(1.01, 0)))
+plot(lf_aedes, . -r ~ r, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
 
 
 # -------------- Modified K-Function Calculation --------------
+
 
 df <- data.frame()
 for (i in seq(50,500,50)) {
