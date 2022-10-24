@@ -31,32 +31,31 @@ sf_shopping_mall <- st_transform(sf_shopping_mall, crs= 3414)
 # -------------- 2. Identify Skyrise Greenery Shopping Mall  --------------
 
 # Extract Retail Skyrise Greenery
-sf_skyrise_greenery_mall <- sf_skyrise_greenery %>% filter(type == "Retail") %>% select(postal_code = post_code, name, geometry)
+sf_skyrise_greenery_mall <- sf_skyrise_greenery %>% filter(type == "Retail") %>% rename(postal_code = post_code)
 sf_skyrise_greenery_mall$greenery <- TRUE
 
 # Merge based on Postal Code
 # (an alternative approach might be to add a smaller buffer to each point of 1 data, and use st_within to join)
-sf_all_shopping_malls <- dplyr::full_join(df_shopping_mall %>% select(mall_names, postal_code, total_reviews, rating, latitude, longitude), sf_skyrise_greenery_mall)
+sf_all_shopping_malls <- dplyr::full_join(df_shopping_mall[c("mall_names", "postal_code", "total_reviews", "rating", "latitude", "longitude")], sf_skyrise_greenery_mall)
 
 sf_shopping_mall_w_skyrise_greenery_info <- rbind(
 
     # Shopping Malls from Scraped Dataset, but not in Skyrise Greenery Dataset
   dplyr::left_join(
-    sf_all_shopping_malls 
-        %>% filter(st_is_empty(geometry)) 
-        %>% replace_na(list(greenery = FALSE)) 
-        %>% select(mall_names, postal_code, greenery),
-    sf_shopping_mall %>% select(mall_names, postal_code, total_reviews, rating)
-  ),
+    (sf_all_shopping_malls %>% filter(st_is_empty(geometry)) %>% replace_na(list(greenery = FALSE)))[c("mall_names", "postal_code", "greenery")],
+    sf_shopping_mall[c("mall_names", "postal_code", "total_reviews", "rating", "geometry")]
+  ) %>% dplyr::select(mall_names, postal_code, geometry, greenery, total_reviews, rating) %>% rename("names" = "mall_names"),
 
   # Shopping Malls Exist in both Scraped Dataset and Skyrise Greenery Dataset
-  sf_all_shopping_malls %>% filter(!st_is_empty(geometry) & !is.na(mall_names)) %>% select(mall_names = name, postal_code, geometry, greenery, total_reviews, rating),
+  (sf_all_shopping_malls %>% filter(!st_is_empty(geometry) & !is.na(mall_names)) %>% rename("names" = "mall_names"))[c("names", "postal_code", "geometry", "greenery", "total_reviews", "rating")],
 
     # Shopping Malls not in Scraped Dataset, but in Skyrise Greenery Dataset
     # Perform a Merge again, this time using the mall name column
     # Those still unmatched will be discarded (either mall name changed, or closed)
-  merge(sf_all_shopping_malls %>% filter(!st_is_empty(geometry) & is.na(mall_names)) %>% select(mall_names = name, postal_code, geometry, greenery),
-        df_shopping_mall %>% select(mall_names, total_reviews, rating))
+  merge((sf_all_shopping_malls %>% filter(!st_is_empty(geometry) & is.na(mall_names))  %>% rename("names" = "name"))[c("names", "postal_code", "geometry", "greenery")],
+        (df_shopping_mall %>% rename("names" = "mall_names"))[c("names", "total_reviews", "rating")],
+        by = c("names")
+  )
 )
 
 # Convert from df to sf
@@ -118,7 +117,6 @@ tm_style(global.style) +
   ) +
   tm_bubbles("total_reviews", col = "greenery", id="mall_names", palette="-RdYlBu") +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
-
 
 
 # -------------- 6. Load Hotels Dataset  --------------
