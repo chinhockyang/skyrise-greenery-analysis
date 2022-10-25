@@ -44,11 +44,13 @@ tm_shape(pop_den.r) + tm_raster(title = "Population density by planning area")
 pop_den.im <- as.im(pop_den.r)
 skyrise_ppp <- as.ppp(sf_skyrise_greenery)
 planning_area.owin <- as.owin(sf_planning_area)
+r_temp.im <- as.im(r_temp.m) #from temp interpolation
 
 # rescale to be based on km
 skyrise_ppp.km <- rescale(skyrise_ppp, 1000, "km")
 pop_den.im.km    <- rescale(pop_den.im, 1000, "km")
 planning_area.owin.km <- rescale(planning_area.owin, 1000, "km")
+r_temp.im.km    <- rescale(r_temp.im, 1000, "km")
 
 ann.p <- mean(nndist(skyrise_ppp.km, k=1)) 
 ann.p #avg nn distance is 379.6014m
@@ -84,6 +86,17 @@ N.greater <- sum(ann.r_alt/1000 > ann.p)
 p <- min(N.greater + 1, n + 1 - N.greater) / (n +1) 
 p
 
+## Alternative Hypothesis - with the influence of pop density
+ann.r_alt2 <- vector(length=n) 
+for (i in 1:n){ 
+  rand.p <- rpoint(n=skyrise_ppp.km$n, f=pop_den.im.km, win=planning_area.owin.km)
+  ann.r_alt2[i] <- mean(nndist(rand.p, k=1)) 
+} 
+Window(rand.p) <- planning_area.owin.km
+plot(rand.p, pch=16, main=NULL, cols=rgb(0,0,0,0.5))
+#Histogram of simulated KNN values
+hist(ann.r_alt2, main=NULL, las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r_alt2))
+abline(v=ann.p, col="blue")
 
 ##### ----- Point Poisson & ANOVA ----- #####
 ppm_h0 <- ppm(skyrise_ppp.km~1) #H0: not a fn of pop density
@@ -93,12 +106,14 @@ ppm_h1 <- ppm(skyrise_ppp.km~pop_den.im.km) #H1
 ppm_h1
 
 #potential h2 - add rainfall/temp for hypo
-#ppm_h2 <- ppm(skyrise_ppp.km~pop_den.im.km + temp.im.km)
-#ppm_h2
+ppm_h2 <- ppm(skyrise_ppp.km~pop_den.im.km + r_temp.im.km)
+ppm_h2
 
 #potential h3 - add rainfall/temp
-#ppm_h3 <- ppm(skyrise_ppp.km~pop_den.im.km + temp.im.km +rain.im.km)
+#ppm_h3 <- ppm(skyrise_ppp.km~pop_den.im.km + r_temp.im.km +rain.im.km)
 #ppm_h3
+
+anova(ppm_h0, ppm_h1, ppm_h2, test="LRT")
 
 
 
@@ -106,7 +121,6 @@ ppm_h1
 # ppm_h2 <- ppm(skyrise_ppp.km~pop_den.im.km) #H1
 #ppm_h2
 
-anova(ppm_h0, ppm_h1, test="LRT")
 
 
 
