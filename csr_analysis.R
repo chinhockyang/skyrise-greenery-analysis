@@ -17,12 +17,12 @@ sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs= 3414)
 
 
 sg_planning_area <- readOGR("data/onemap_planning_area")
-sf_sg_planning_area <- st_make_valid(st_as_sf(sg_planning_area))
-sf_sg_planning_area <- st_transform(st_as_sf(sg_planning_area), crs=3414)
+sf_planning_area <- st_make_valid(st_as_sf(sg_planning_area))
+sf_planning_area <- st_transform(st_as_sf(sg_planning_area), crs=3414)
 
 planningarea_pop <- read.csv("data/total_pop_planningarea2019.csv")
 # add pop to sf
-sf_planning_area <- merge(sf_sg_planning_area, planningarea_pop, by.x='pln_area_n', by.y='Planning_area')
+sf_planning_area <- merge(sf_planning_area, planningarea_pop, by.x='pln_area_n', by.y='Planning_area')
 # add area to sf
 sf_planning_area$area <- st_area(sf_planning_area)
 sf_planning_area$area_km <- set_units(sf_planning_area$area, "km^2")
@@ -92,8 +92,23 @@ ppm_h0
 ppm_h1 <- ppm(skyrise_ppp.km~pop_den.im.km) #H1
 ppm_h1
 
+#potential h2 - add rainfall/temp
+#ppm_h2 <- ppm(skyrise_ppp.km~pop_den.im.km + temp.im.km)
+#ppm_h2
+
+#potential h3 - add rainfall/temp
+#ppm_h3 <- ppm(skyrise_ppp.km~pop_den.im.km + temp.im.km +rain.im.km)
+#ppm_h3
+
+
+
+#potential h2 - add prices?
+# ppm_h2 <- ppm(skyrise_ppp.km~pop_den.im.km) #H1
+#ppm_h2
+
 anova(ppm_h0, ppm_h1, test="LRT")
 
 
 
-
+#do another on hdb version
+# get interpolated temp & rainfall data as h2
