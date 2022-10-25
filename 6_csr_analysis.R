@@ -92,7 +92,7 @@ ppm_h0
 ppm_h1 <- ppm(skyrise_ppp.km~pop_den.im.km) #H1
 ppm_h1
 
-#potential h2 - add rainfall/temp
+#potential h2 - add rainfall/temp for hypo
 #ppm_h2 <- ppm(skyrise_ppp.km~pop_den.im.km + temp.im.km)
 #ppm_h2
 
