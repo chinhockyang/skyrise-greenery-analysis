@@ -17,14 +17,6 @@ skyrise_greenery.csr@data <- skyrise_greenery.csr@data[,-(1:4)]
 sf_skyrise_greenery.csr <- st_as_sf(skyrise_greenery.csr)
 sf_skyrise_greenery.csr <- st_transform(sf_skyrise_greenery.csr, crs= 3414)
 
-
-hdb_prices_with_planning_area <- readOGR("data/hdb_prices_with_planning_area")
-sf_hdb_prices_with_planning_area <- st_make_valid(st_as_sf(hdb_prices_with_planning_area))
-sf_hdb_prices_with_planning_area <- st_transform(st_as_sf(hdb_prices_with_planning_area), crs=3414)
-#tm_shape(sf_hdb_prices_with_planning_area) + tm_dots(title = "HDB Plot") 
-# grp by planning area, get avg of price
-
-
 sg_planning_area <- readOGR("data/onemap_planning_area")
 sf_planning_area <- st_make_valid(st_as_sf(sg_planning_area))
 sf_planning_area <- st_transform(st_as_sf(sg_planning_area), crs=3414)
@@ -87,9 +79,9 @@ for (i in 1:n){
   ann.r_alt[i] <- mean(nndist(rand.p.h1, k=1)) 
 } 
 Window(rand.p.h1) <- planning_area.owin.km
-plot(rand.p.h1, pch=16, main="H1", cols=rgb(0,0,0,0.5))
+plot(rand.p.h1, pch=16, main="Hypothesis Testing (Population Density)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
-hist(ann.r_alt, main="H1", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r_alt))
+hist(ann.r_alt, main="Hypothesis Testing (Population Density)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r_alt))
 abline(v=ann.p, col="blue")
 
 #p-val
@@ -104,9 +96,9 @@ for (i in 1:n){
   ann.r_alt2[i] <- mean(nndist(rand.p.h2, k=1)) 
 } 
 Window(rand.p.h2) <- planning_area.owin.km
-plot(rand.p.h2, pch=16, main="H2", cols=rgb(0,0,0,0.5))
+plot(rand.p.h2, pch=16, main="Hypothesis Testing (Temperature)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
-hist(ann.r_alt2, main="Alt Hypothesis (H2): Temperature", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r_alt2))
+hist(ann.r_alt2, main="Hypothesis Testing (Temperature)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r_alt2))
 abline(v=ann.p, col="blue")
 
 N.greater2 <- sum(ann.r_alt2/1000 > ann.p) 
@@ -121,9 +113,9 @@ for (i in 1:n){
   ann.r_alt3[i] <- mean(nndist(rand.p.h3, k=1)) 
 } 
 Window(rand.p.h3) <- planning_area.owin.km
-plot(rand.p.h3, pch=16, main="H3", cols=rgb(0,0,0,0.5))
+plot(rand.p.h3, pch=16, main="Hypothesis Testing (Rainfall)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
-hist(ann.r_alt3, main="Alt Hypothesis (H3): Rainfall", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r_alt3))
+hist(ann.r_alt3, main="Hypothesis Testing (Rainfall)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r_alt3))
 abline(v=ann.p, col="blue")
 
 N.greater3 <- sum(ann.r_alt3/1000 > ann.p) 
@@ -147,15 +139,3 @@ ppm_h3 <- ppm(skyrise_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.im.km)
 ppm_h3
 
 anova(ppm_h0, ppm_h1, ppm_h2, ppm_h3, test="LRT")
-
-
-
-#potential h2 - add prices?
-# ppm_h2 <- ppm(skyrise_ppp.km~pop_den.im.km) #H1
-#ppm_h2
-
-
-
-
-#do another on hdb version
-# get interpolated temp & rainfall data as h2
