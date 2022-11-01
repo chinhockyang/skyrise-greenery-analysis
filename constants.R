@@ -21,3 +21,10 @@ tm_compass.type = "rose"
 tm_compass.position = c("right", "top")
 tm_compass.show.labels = 3
 tm_compass.size = 2
+
+# For KDE
+choose_bw <- function(spdf) { 
+  X <- st_coordinates(spdf) 
+  sigma <- c(sd(X[,1]),sd(X[,2])) * (2 / (3 * nrow(X))) ^ (1/6) 
+  return(sigma/1000)
+}
