@@ -2,14 +2,45 @@
 # Load Libraries and Variables
 #===============================================================
 
+# Data Files RequiredL
+# 1. onemap_subzone (shp folder)
+# 2. skyrise_greenery (shp folder)
+# 3. addresses_full.csv (csv file)
+
+library(rgdal)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(tmap)
+library(ggplot2)
+library(tmaptools)
 library(stringr)
 require(spatstat)
 library(oldtmaptools)
-
 source("constants.R")
 
-# KIV: Planning to get rid of this and load necessary codes at the top
-source("1_initial_exploration.R")
+# Loading and Preparing Data used in earlier files 
+# [skip this part to get to the main analysis codes]
+#===============================================================
+# Load and Preprocess Planning Area Dataset  [skip to get to main analysis]
+sg_subzone <- readOGR("data/onemap_subzone")
+sf_subzone <- st_make_valid(st_as_sf(sg_subzone))
+row.names(sf_subzone) <- NULL
+sf_subzone <- st_transform(sf_subzone, crs=3414)
+sf_planning_area <- sf_subzone %>% group_by(pln_area) %>% summarise(geometry = st_union(geometry))
+
+# Load and Preprocess Skyrise Greenery Dataset  [skip to get to main analysis]
+skyrise_greenery <- readOGR("data/skyrise_greenery")
+sf_skyrise_greenery <- st_make_valid(st_as_sf(skyrise_greenery))
+sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs=3414)
+sf_skyrise_greenery$type <- unlist(apply(sf_skyrise_greenery, MARGIN=1, FUN = function(x) {
+  if (x["type"] %in% c("HDB", "MSCP", "Private Residential")) {
+    return("Residential")
+  } else {
+    return(x["type"])
+  }
+}))
+
 
 
 # Preparing External HDB dataset (Preprocessing)

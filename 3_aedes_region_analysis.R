@@ -2,14 +2,92 @@
 # Load Libraries and Variables
 #===============================================================
 
-library(raster)
-library(hrbrthemes)
+# Data Files RequiredL
+# 1. onemap_subzone (shp folder)
+# 2. skyrise_greenery (shp folder)
+# 3. addresses_full.csv (csv file)
+# 4. high_aedes_population_regions (shp folder)
 
+library(rgdal)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(tmap)
+library(ggplot2)
+library(tmaptools)
+library(stringr)
+require(spatstat)
+library(raster)
 source("constants.R")
 
-# KIV: Planning to get rid of this and load necessary codes at the top
-source("1_initial_exploration.R")
-source("2_hdb_exploration.R")
+# Loading and Preparing Data used in earlier files 
+# [skip this part to get to the main analysis codes]
+#===============================================================
+# Load and Preprocess Planning Area Dataset  [skip to get to main analysis]
+sg_subzone <- readOGR("data/onemap_subzone")
+sf_subzone <- st_make_valid(st_as_sf(sg_subzone))
+row.names(sf_subzone) <- NULL
+sf_subzone <- st_transform(sf_subzone, crs=3414)
+sf_planning_area <- sf_subzone %>% group_by(pln_area) %>% summarise(geometry = st_union(geometry))
+
+# Load and Preprocess Skyrise Greenery Dataset  [skip to get to main analysis]
+skyrise_greenery <- readOGR("data/skyrise_greenery")
+sf_skyrise_greenery <- st_make_valid(st_as_sf(skyrise_greenery))
+sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs=3414)
+sf_skyrise_greenery$type <- unlist(apply(sf_skyrise_greenery, MARGIN=1, FUN = function(x) {
+  if (x["type"] %in% c("HDB", "MSCP", "Private Residential")) {
+    return("Residential")
+  } else {
+    return(x["type"])
+  }
+}))
+sf_skyrise_greenery$address <- apply(sf_skyrise_greenery, MARGIN=1, FUN = function(x) {
+  address = str_to_lower(x["address"])
+  address = str_replace(address, "avenue", "ave")
+  return(str_trim(str_replace(address, "singapore\\s*\\d*", "")))
+})
+
+# Load and Preprocess All Buildings Dataset  [skip to get to main analysis]
+hdb_info <- read.csv("data/addresses_full.csv", colClasses=c("year_completed"="numeric", "max_floor_lvl"="numeric"))
+hdb_info <- hdb_info %>% drop_na(LATITUDE)
+hdb_info$ADDRESS <- str_to_lower(hdb_info$ADDRESS)
+sf_hdb <- st_as_sf(hdb_info, coords = c("LONGITUDE", "LATITUDE"), crs= "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+sf_hdb <- st_transform(sf_hdb, crs= 3414)
+sf_hdb$type <- apply(sf_hdb, MARGIN=1, FUN=function(x) {
+  if(x["residential"] == "Y") {
+    return("Residential")
+  } else if (x["multistorey_carpark"] == "Y") {
+    return("MSCP")
+  } else if (x["commercial"] == "Y") {
+    return("Commercial")
+  } else if (x["market_hawker"] == "Y") {
+    return("Market/Hawker")
+  } else if (x["precint_pavilion"] == "Y") {
+    return("Pavillion")
+  } else {
+    return("Others")
+  }
+})
+sf_skyrise_hdb <- sf_hdb %>% filter(
+  (POSTAL_CODE %in% sf_skyrise_greenery$post_code) |
+    (ADDRESS %in% sf_skyrise_greenery$address)
+)
+sf_hdb$greenery <- apply(sf_hdb, MARGIN = 1, FUN = function(x) {
+  if ((x["POSTAL_CODE"] %in% sf_skyrise_hdb$POSTAL_CODE) | (x["ADDRESS"] %in% sf_skyrise_hdb$ADDRESS)) {
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+})
+sf_skyrise_greenery$greenery <- TRUE
+sf_combinded_skyrise_greenery_and_hdb <- rbind(
+  sf_hdb %>% filter(greenery == FALSE ) %>% dplyr::select(ADDRESS, POSTAL_CODE, greenery),
+  sf_skyrise_greenery %>% dplyr::select(address, post_code, greenery) %>% dplyr::rename(ADDRESS = address, POSTAL_CODE = post_code)
+)
+sf_combinded_skyrise_greenery_and_hdb <- st_join(sf_combinded_skyrise_greenery_and_hdb, sf_planning_area, join = st_within)
+row.names(sf_combinded_skyrise_greenery_and_hdb) <- NULL
+
+
 
 
 # Load Aedes Region Dataset
@@ -96,7 +174,8 @@ tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col=
 # Identify Nearest Hotspot
 nearest_hotspot <- st_nearest_feature(sf_combinded_skyrise_greenery_and_hdb, sf_aedes_regions)
 
-# Compute Distance between Nearest Hotspot and All Buildings [This code will take some time (5-10 min) to complete]
+# Compute Distance between Nearest Hotspot and All Buildings 
+# [This code will take some time (10 min) to complete]
 sf_combinded_skyrise_greenery_and_hdb$distance_from_nearest_hotspot <- NA
 for (i in 1:nrow(sf_combinded_skyrise_greenery_and_hdb)) {
   building <- sf_combinded_skyrise_greenery_and_hdb[i,]

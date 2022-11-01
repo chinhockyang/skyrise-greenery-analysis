@@ -2,7 +2,10 @@
 # Load Libraries and Variables
 #===============================================================
 
-# Packages from Lecture Practical Sheets
+# Data Files RequiredL
+# 1. onemap_subzone (shp folder)
+# 2. skyrise_greenery (shp folder)
+
 library(rgdal)
 library(dplyr)
 library(tidyr)
@@ -11,7 +14,6 @@ library(tmap)
 library(ggplot2)
 library(tmaptools)
 # tmaptools::palette_explorer()
-
 source("constants.R")
 
 # Preparing OneMap Planning Area dataset (Preprocessing)
