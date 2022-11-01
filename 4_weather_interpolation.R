@@ -14,21 +14,13 @@ weather_stations <- readOGR("data/weather_stations")
 sf_weather_stations <- st_as_sf(weather_stations)
 sf_weather_stations <- st_transform(sf_weather_stations, crs=3414)
 
-df_rainfall_data <- read.csv("data/grouped_rainfall_data.csv")
-df_temperature_data <- read.csv("data/grouped_temp_data.csv")
+df_rainfall_data <- read.csv("data/groupbystation_rainfall_2019.csv")
+df_temperature_data <- read.csv("data/groupbystation_temp_2019.csv")
 
-# -------------- Subset Rainfall/Temperature Data for 2019 Data --------------
-
-df_total_annual_rainfall <- df_rainfall_data %>% group_by(station, year) %>% summarise(rainfall = sum(rainfall, na.rm=TRUE))
-df_mean_annual_temp <- df_temperature_data %>% group_by(station, year) %>% summarise(mean_temp = mean(mean_temp, na.rm=TRUE))
-
-# Subset for 2019 Data
-df_2019_rainfall <- df_total_annual_rainfall %>% filter(year == 2019)
-df_mean_2019_temp <- df_mean_annual_temp %>% filter(year == 2019)
 
 # Convert to SF
-sf_rainfall_data <- merge(sf_weather_stations, df_2019_rainfall)
-sf_temperature_data <- merge(sf_weather_stations, df_mean_2019_temp)
+sf_rainfall_data <- merge(sf_weather_stations, df_rainfall_data)
+sf_temperature_data <- merge(sf_weather_stations, df_temperature_data)
 
 
 # -------------- EDA (Temperature) --------------
