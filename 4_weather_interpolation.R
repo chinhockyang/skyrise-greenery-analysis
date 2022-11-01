@@ -31,12 +31,16 @@ sf_temperature_data$mean_temp_2dp <- sprintf("%.2f", sf_temperature_data$mean_te
 # Plot
 # ----- Blue Means Lower Temperature, Red Means Higher Temperature
 tmap_mode("plot")
-tm_shape(sf_planning_area) + tm_polygons() +
+tm_shape(sf_planning_area) + tm_fill(col="grey", alpha=0.4) + tm_borders(alpha=0.4) +
+  tm_shape(sf_temperature_data) +
+  tm_symbols(col="mean_temp", palette = "-RdBu") +
   tm_shape(sf_temperature_data) +
   tm_dots(col="mean_temp", palette = "-RdBu",
-          title="Mean Temperature (Q3) \n(deg C)", size=0.7) +
+          title="Mean Temperature (2019) \n(deg C)", size=0.7) +
   tm_text("mean_temp_2dp", just="left", xmod=.5, size = 1) +
-  tm_legend(legend.outside=TRUE)
+  tm_legend(legend.outside=TRUE) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
 
 # -------------- EDA (Rainfall) --------------
 
@@ -45,13 +49,15 @@ sf_rainfall_data$rainfall_2dp <- sprintf("%.2f", sf_rainfall_data$rainfall)
 
 # Plot
 # ----- Blue Means More Rainfall, Red Means Less Rainfall
-tm_shape(sf_planning_area) + tm_polygons() +
+tm_shape(sf_planning_area) + tm_fill(col="grey", alpha=0.4) + tm_borders(alpha=0.4) +
+  tm_shape(sf_rainfall_data) +
+  tm_symbols(col="rainfall", palette = "RdBu") +
   tm_shape(sf_rainfall_data) +
   tm_dots(col="rainfall", palette = "RdBu",
-          title="Total Rainfall in 2019", size=0.7) +
+          title="Total Rainfall in 2019 (mm)", size=0.7) +
   tm_text("rainfall_2dp", just="left", xmod=.5, size = 1) +
-  tm_legend(legend.outside=TRUE)
-
+  tm_legend(legend.outside=TRUE) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 # -------------- Preparing SP data for Interpolation --------------
 
@@ -160,7 +166,6 @@ sf_idw_rainfall_pred <- st_as_sf(Rainfall.idw)
 planning_area_predicted_rainfall <- st_join(sf_planning_area, sf_idw_rainfall_pred, join=st_contains) %>% 
                                     group_by(pln_area_n) %>% summarise(rainfall = mean(var1.pred))
 
-planning_area_predicted_rainfall
 
 
 # -------------- Export Predicted Dataset --------------
