@@ -1,13 +1,51 @@
-# -------------- Load Libraries and Variables --------------
 
+# Load Libraries and Variables
+#===============================================================
+
+# Data Files RequiredL
+# 1. onemap_subzone (shp folder)
+# 2. skyrise_greenery (shp folder)
+# 3. addresses_full.csv (csv file)
+
+library(rgdal)
+library(dplyr)
+library(tidyr)
+library(sf)
+library(tmap)
+library(ggplot2)
+library(tmaptools)
 library(stringr)
 require(spatstat)
 library(oldtmaptools)
-
 source("constants.R")
-source("1_initial_exploration.R")
 
-# -------------- Preparing External HDB dataset --------------
+# Loading and Preparing Data used in earlier files 
+# [skip this part to get to the main analysis codes]
+#===============================================================
+# Load and Preprocess Planning Area Dataset  [skip to get to main analysis]
+sg_subzone <- readOGR("data/onemap_subzone")
+sf_subzone <- st_make_valid(st_as_sf(sg_subzone))
+row.names(sf_subzone) <- NULL
+sf_subzone <- st_transform(sf_subzone, crs=3414)
+sf_planning_area <- sf_subzone %>% group_by(pln_area) %>% summarise(geometry = st_union(geometry))
+
+# Load and Preprocess Skyrise Greenery Dataset  [skip to get to main analysis]
+skyrise_greenery <- readOGR("data/skyrise_greenery")
+sf_skyrise_greenery <- st_make_valid(st_as_sf(skyrise_greenery))
+sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs=3414)
+sf_skyrise_greenery$type <- unlist(apply(sf_skyrise_greenery, MARGIN=1, FUN = function(x) {
+  if (x["type"] %in% c("HDB", "MSCP", "Private Residential")) {
+    return("Residential")
+  } else {
+    return(x["type"])
+  }
+}))
+
+
+
+# Preparing External HDB dataset (Preprocessing)
+#===============================================================
+# Load Data
 hdb_info <- read.csv("data/addresses_full.csv", colClasses=c("year_completed"="numeric", "max_floor_lvl"="numeric"))
 
 # handle missing values
@@ -16,11 +54,11 @@ hdb_info <- hdb_info %>% drop_na(LATITUDE)
 # Lowercase Address for Matching
 hdb_info$ADDRESS <- str_to_lower(hdb_info$ADDRESS)
 
-# Convert to Sf
+# Convert to SF
 sf_hdb <- st_as_sf(hdb_info, coords = c("LONGITUDE", "LATITUDE"), crs= "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
 sf_hdb <- st_transform(sf_hdb, crs= 3414)
 
-# Assigning Type of Building
+# Building Type Assignment
 sf_hdb$type <- apply(sf_hdb, MARGIN=1, FUN=function(x) {
   if(x["residential"] == "Y") {
     return("Residential")
@@ -38,12 +76,16 @@ sf_hdb$type <- apply(sf_hdb, MARGIN=1, FUN=function(x) {
 })
 
 
-# -------------- Quick EDA and Density Plot on Full HDB Dataset --------------
+# EDA on Full HDB Dataset 
+#===============================================================
 
+# Number of HDB in dataset
 nrow(sf_hdb)
 dplyr::count(sf_hdb, type, sort=TRUE)
 
+
 # Density Plot
+# [KIV]: Move to bottom for Point Pattern Analysis
 choose_bw <- function(spdf) { 
   X <- st_coordinates(spdf) 
   sigma <- c(sd(X[,1]),sd(X[,2])) * (2 / (3 * nrow(X))) ^ (1/6) 
@@ -51,28 +93,35 @@ choose_bw <- function(spdf) {
 }
 
 hdb_dens <- smooth_map(sf_hdb, bandwidth = choose_bw(sf_hdb$geometry))
-
 tmap_mode('view')
   tm_shape(hdb_dens$raster) + tm_raster() +
   tm_shape(sf_subzone) +tm_borders()
 
 
-# Dot Plot
+# Pie Chart of Types of HDB
+ggplot(dplyr::count(sf_hdb, type, sort=TRUE), aes(x="", y = n, fill = type)) +
+  geom_col(color = "black") +
+  geom_text(aes(label = n),
+            position = position_stack(vjust = 0.5)) +
+  coord_polar(theta = "y") + scale_fill_brewer(palette = "Pastel1")  
+
+# Dot Plot of HDB (and their Types)
 tmap_mode("plot")
-tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col="grey", alpha=0.5) +
+tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col="grey", alpha=1) +
   tm_shape(sf_hdb, title="Type") + tm_symbols(col="type", size=0.4) +
   tm_style(global.style) +
   tm_layout(
-    title = "HDB in Singapore", 
+    title = "HDB Buildings (and their types)", 
     title.size = tm_layout.title.size, title.position=tm_layout.title.position, title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, inner.margins=tm_layout.inner.margins
   ) +  
   tm_legend(position=c("right", "bottom"), title.size = 1, text.size = 0.8) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 
-# -------------- Identify HDB that are Skyrise Greenery --------------
+# HDB Skyrise Greenery Identification
+#===============================================================
 
-# lowercase address
+# lowercase address on Skyrise Greenery dataset and standardising texts
 sf_skyrise_greenery$address <- apply(sf_skyrise_greenery, MARGIN=1, FUN = function(x) {
   address = str_to_lower(x["address"])
   address = str_replace(address, "avenue", "ave")
@@ -85,31 +134,51 @@ sf_skyrise_hdb <- sf_hdb %>% filter(
     (ADDRESS %in% sf_skyrise_greenery$address)
 )
 
+# Create Boolean variable "greenery" to tell if building is skyrise greenery
+sf_hdb$greenery <- apply(sf_hdb, MARGIN = 1, FUN = function(x) {
+  if ((x["POSTAL_CODE"] %in% sf_skyrise_hdb$POSTAL_CODE) | (x["ADDRESS"] %in% sf_skyrise_hdb$ADDRESS)) {
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+})
 
-# -------------- EDA on Skyrise HDB Locations --------------
+# Combining All Unique Buildings from Both Datasets (use Address, Postal Code and greenery to filter and bind)
+sf_skyrise_greenery$greenery <- TRUE
+sf_combinded_skyrise_greenery_and_hdb <- rbind(
+  sf_hdb %>% filter(greenery == FALSE ) %>% dplyr::select(ADDRESS, POSTAL_CODE, greenery),
+  sf_skyrise_greenery %>% dplyr::select(address, post_code, greenery) %>% dplyr::rename(ADDRESS = address, POSTAL_CODE = post_code)
+)
+sf_combinded_skyrise_greenery_and_hdb <- st_join(sf_combinded_skyrise_greenery_and_hdb, sf_planning_area, join = st_within)
+row.names(sf_combinded_skyrise_greenery_and_hdb) <- NULL
+
+
+# Skyrise Greenery Exploratory Spatial Data Analysis
+#===============================================================
 
 # Locations of Skyrise HDB Buildings
 tmap_mode("plot")
-tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col="grey", alpha=0.5) +
+tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col="grey", alpha=1) +
   tm_shape(sf_skyrise_hdb, title="Type") + tm_symbols(col="type") +
   tm_style(global.style) +
   tm_layout(
-    title = "HDB-Estate Skyrise Greenery in Singapore", 
+    title = "HDB Skyrise Greenery in Singapore", 
     title.size = tm_layout.title.size, title.position=tm_layout.title.position, title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, inner.margins=tm_layout.inner.margins
   ) +  
   tm_legend(position=c("right", "bottom"), title.size = 1, text.size = 0.8) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 
-# Types of Skyrise Buildings
-ggplot(sf_skyrise_hdb %>% group_by(type) %>% summarise(count=n_distinct(POSTAL_CODE)), 
-  aes(x=type, y=count)) + geom_bar(stat="identity",fill = "darkgreen", alpha = 0.7) +
-  theme(axis.text.x=element_text(angle=90)) +
-  ggtitle("Types of Skyrise Greenery HDB-Estate Buildings") +
-  labs(x = "Type", y = "Count")
+# Bar Chart of Types of HDB Skyrise Greenery
+ggplot(dplyr::count(sf_skyrise_hdb, type, sort=TRUE), aes(x="", y = n, fill = type)) +
+  geom_col(color = "black") +
+  geom_text(aes(label = n),
+            position = position_stack(vjust = 0.5)) +
+  coord_polar(theta = "y") + scale_fill_brewer(palette = "Pastel1")
 
-# -------------- EDA on HDB Attributes across Planning Areas --------------
 
+# Aggregate Data By Planning Area
+# Look into mean Floor level, median Year Completed, number of buildings in each planning area
 sf_hdb_by_planning_area <- st_join(sf_hdb, sf_planning_area, join = st_within)
 sf_hdb_group_by_planning_area <- sf_hdb_by_planning_area %>% 
                               filter(residential == "Y") %>% 
@@ -124,26 +193,23 @@ sf_hdb_planning_area_info <- st_join(sf_planning_area,
                                     sf_hdb_group_by_planning_area,
                                     join = st_contains) %>% replace_na(list(count = 0))
 
-
-#  HDB across Planning Areas
+# Choropleth Visualisation - HDB across Planning Areas
 tmap_mode('plot')
 tm_shape(sf_hdb_planning_area_info) + 
   tm_fill("count", alpha=1, title="Number of Buildings") + tm_borders(alpha=0.9) +  
-  tm_shape(sf_skyrise_hdb) + tm_symbols(col="type") +
-  tm_style(global.style) +
+  tm_shape(sf_skyrise_hdb) + tm_symbols(col="darkgreen", size=0.3, alpha=0.6) +
   tm_layout(
-    title = "HDB-Related Buildings across Planning Areas in Singapore", 
+    title = "Number of HDB across Planning Areas in Singapore", 
     title.size = tm_layout.title.size, title.position=tm_layout.title.position, title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, inner.margins=tm_layout.inner.margins
   ) +  
   tm_legend(position=c("right", "bottom"), title.size = 1, text.size = 0.8) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 
-# Year Completion
+# Choropleth Visualisation - Year Completion
 tm_shape(sf_hdb_planning_area_info) + 
   tm_fill("median_year_completed", alpha=1, title="Year Completed (Median)") + tm_borders(alpha=0.9) +
-  tm_shape(sf_skyrise_hdb) + tm_symbols(col="type") +
-  tm_style(global.style) +
+  tm_shape(sf_skyrise_hdb) + tm_symbols(col="darkgreen", size=0.3, alpha=0.6) +
   tm_layout(
     title = "Year of Completion of HDB in Singapore", 
     title.size = tm_layout.title.size, title.position=tm_layout.title.position, title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, inner.margins=tm_layout.inner.margins
@@ -152,18 +218,26 @@ tm_shape(sf_hdb_planning_area_info) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 
-# Floor Level
+# Choropleth Visualisation - Floor Level
 tm_shape(sf_hdb_planning_area_info) + 
   tm_fill("mean_floor_lvl", alpha=1, title="Floor Level") + tm_borders(alpha=0.9) +
-  tm_shape(sf_skyrise_hdb) + tm_symbols(col="type", size=0.6, palette="RdYlGn", border.alpha=1) +
-  tm_style(global.style) +
+  tm_shape(sf_skyrise_hdb) + tm_symbols(col="darkgreen", size=0.3, alpha=0.6) +
   tm_layout(
-    title = "Floor Levels of HDBs in Singapore", 
+    title = "Floor Levels of HDB across Planning Areas", 
     title.size = tm_layout.title.size, title.position=tm_layout.title.position, title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, inner.margins=tm_layout.inner.margins
   ) +  
   tm_legend(position=c("right", "bottom"), title.size = 1, text.size = 0.8) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
+
+# export out for use in hypo testing
+# sf_hdb_planning_area_info <- sf_hdb_planning_area_info %>% dplyr::select(pln_area.x, geometry, mean_floor_lvl, median_year_completed, count) %>%
+  # dplyr::rename(pln_area = pln_area.x, floor = mean_floor_lvl, year = median_year_completed)
+# st_write(sf_hdb_planning_area_info, "hdb_info_accross_planning_area.shp", delete_layer = T)
+
+
+# Point Pattern Analysis
+#===============================================================
 
 # -------------- Distance Related Skyrise HDB Analysis --------------
 
@@ -203,7 +277,6 @@ plot(as.ppp(sf_skyrise_hdb), pch=20, cex=0.6, col=rgb(0,0,0,.5), add=TRUE)  # Ad
 # KDE
 skyrise_hdb_dens <- smooth_map(sf_skyrise_hdb, bandwidth = choose_bw(sf_skyrise_hdb$geometry))
 
-tmap_mode('view')
+tmap_mode('plot')
   tm_shape(skyrise_hdb_dens$raster) + tm_raster() +
   tm_shape(sf_subzone) +tm_borders()
-  
