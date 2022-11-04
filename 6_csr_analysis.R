@@ -2,7 +2,7 @@
 #===============================================================
 
 # Data Files Required:
-# 1. onemap_subzone (shp folder)
+# 1. onemap_planningarea (shp folder)
 # 2. skyrise_greenery (shp folder)
 # 3. planning area population for density calculation (csv)
 

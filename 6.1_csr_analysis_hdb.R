@@ -1,3 +1,13 @@
+# Load Libraries and Variables
+#===============================================================
+
+# Data Files Required:
+# 1. onemap_planningarea (shp folder)
+# 2. skyrise_hdb (shp folder)
+# 3. planning area population for density calculation (csv)
+# 4. hdb_info_across_planning_area (shp folder)
+# 5. <hdb prices by planning area> *not in yet
+
 library(rgdal) 
 library(maptools) 
 library(raster)
@@ -31,8 +41,18 @@ sf_hdb_skyrise_greenery.csr <- st_transform(sf_hdb_skyrise_greenery.csr, crs= 34
 #head(sf_hdb_skyrise_greenery.csr)
 
 
-##### ----- rasterize mean HDB floor for hypo test ----- #####
-# EDA Visualisation on map
+# Rasterize mean HDB floor for hypo test
+hdb_floor.r <- raster(nrow = 180, ncols = 360, ext = extent(sf_hdb_info_across_planning_area)) 
+hdb_floor.r <- rasterize(hdb_info_across_planning_area, hdb_floor.r, field = "floor")
+
+crs(hdb_floor.r) <- crs(sf_hdb_info_across_planning_area) 
+# Raster visualisation
+tm_shape(hdb_floor.r) + tm_raster(title = "Mean Floor by planning area") 
+
+
+# EDA - population density
+#===============================================================
+# Generate choropleth map for mean height by floors of HDBs
 tm_shape(sf_hdb_info_across_planning_area) + tm_polygons("floor", title="Mean floor of HDBs") +
   tm_layout(
     title = "Mean Floor of HDBs by Planning Area", 
@@ -47,18 +67,11 @@ tm_shape(sf_hdb_info_across_planning_area) + tm_polygons("floor", title="Mean fl
   tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.05) + tm_borders(col="grey", alpha=0.5) 
 
 
-hdb_floor.r <- raster(nrow = 180, ncols = 360, ext = extent(sf_hdb_info_across_planning_area)) 
-hdb_floor.r <- rasterize(hdb_info_across_planning_area, hdb_floor.r, field = "floor")
-
-crs(hdb_floor.r) <- crs(sf_hdb_info_across_planning_area) 
-
-# Raster visualisation
-tm_shape(hdb_floor.r) + tm_raster(title = "Mean Floor by planning area") 
 
 
-
-##### ----- Hypo test ----- #####
-# converting data for use in hypo test
+# Hypothesis Test 
+#===============================================================
+# Converting data for use in hypo test
 pop_den.im <- as.im(pop_den.r)
 skyrise_hdb_ppp <- as.ppp(sf_hdb_skyrise_greenery.csr)
 planning_area.owin <- as.owin(sf_hdb_info_across_planning_area)
@@ -68,10 +81,10 @@ hdb_floor.im <- as.im(hdb_floor.r)
 
 
 #new: hdb price raster
-hdb_price.im <- as.im("hdb_price raster layer") #to be done
+hdb_price.im <- as.im("hdb_price raster layer") #to be done ***
 
 
-# rescale to be based on km
+# Rescale to be based on km
 skyrise_hdb_ppp.km <- rescale(skyrise_hdb_ppp, 1000, "km")
 pop_den.im.km <- rescale(pop_den.im, 1000, "km")
 planning_area.owin.km <- rescale(planning_area.owin, 1000, "km")
@@ -79,7 +92,7 @@ r_temp.im.km <- rescale(r_temp.im, 1000, "km")
 r_rainfall.im.km <- rescale(r_rainfall.im, 1000, "km")
 hdb_floor.im.km <- rescale(hdb_floor.im, 1000, "km")
 
-#new: hdb price raster
+#new: hdb price raster ***
 hdb_price.im.km <- rescale(hdb_price.im, 1000, "km")
 
 
@@ -87,8 +100,8 @@ ann.p <- mean(nndist(skyrise_hdb_ppp.km, k=1))
 ann.p #0.3827644km
 
 
-
-## Null Hypothesis CSR - randomly located ard SG
+## ---------- Running CSR ------------ ##
+# Null Hypothesis (Base model) - location of HDB skyrise greenery consistent with CSR
 n <- 599L 
 ann.r <- vector(length = n) 
 for (i in 1:n){ 
@@ -101,6 +114,7 @@ plot(rand.p, pch=16, main="H0: HDB Skyrise greenery follows CSR", cols=rgb(0,0,0
 hist(ann.r, main="H0: Skyrise greenery follows CSR", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.r))
 abline(v=ann.p, col="blue")
 # Interpretation: For CSR skyrise would be distributed with dis ranging btw 1000-1500m
+
 
 ## Alternative Hypothesis 1 - with the influence of pop density
 ann.r_alt <- vector(length=n) 
@@ -118,6 +132,7 @@ abline(v=ann.p, col="blue")
 N.greater <- sum(ann.r_alt/1000 > ann.p) 
 p <- min(N.greater + 1, n + 1 - N.greater) / (n +1) 
 p #0.001666667
+
 
 ## Alternative Hypothesis 2 - with the influence of temperature
 ann.r_alt2 <- vector(length=n) 
@@ -151,6 +166,7 @@ abline(v=ann.p, col="blue")
 N.greater3 <- sum(ann.r_alt3/1000 > ann.p) 
 p3 <- min(N.greater3 + 1, n + 1 - N.greater3) / (n +1) 
 p3
+
 
 ## Alternative Hypothesis 4 - with the hdb height (floors)
 ann.r_alt4 <- vector(length=n) 
@@ -192,7 +208,7 @@ anova(ppm_h0, ppm_h1, ppm_h2, ppm_h3, ppm_h4, test="LRT")
 
 
 
-# h5 - add prices
+# h5 - add prices ***
 # ppm_h5 <- ppm(skyrise_hdb_ppp.km~pop_den.im.km) #H1
 #ppm_h5
 
