@@ -71,11 +71,12 @@ tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col=
 dplyr::count(sf_skyrise_greenery, type, sort=TRUE)
 
 # Inspect Visually through Bar Plot
-ggplot(sf_skyrise_greenery, aes(x=type)) + 
+ggplot(sf_skyrise_greenery, aes(y=type)) + 
   geom_bar(fill = "darkorange", alpha = 0.7) +
   theme(axis.text.x=element_text(angle=90)) +
   ggtitle("Types of Skyrise Greenery Buildings") +
-  labs(x = "Type", y = "Count")
+  labs(x = "Type", y = "Count") +
+  scale_fill_brewer(palette = "Pastel1")  
 
 # Inspect Visually through Pie Chart
 ggplot(dplyr::count(sf_skyrise_greenery, type, sort=TRUE), aes(x="", y = n, fill = type)) +
@@ -88,7 +89,7 @@ ggplot(dplyr::count(sf_skyrise_greenery, type, sort=TRUE), aes(x="", y = n, fill
 # Dot Map - Skyrise Greenery and their Types
 tmap_mode("plot")
 tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col="grey", alpha=1) +
-  tm_shape(sf_skyrise_greenery, title="Type") + tm_symbols(col="type") +
+  tm_shape(sf_skyrise_greenery, title="Type") + tm_symbols(col="type", size=0.05, alpha=0.8) +
   tm_style(global.style) +
   tm_layout(
     title = "Skyrise Greenery in Singapore (and their types)", 
@@ -192,3 +193,64 @@ tm_shape(sf_planning_area_w_skyrise_greenery_info %>% filter(type %in% c("Retail
   ) +  
   tm_legend(position=c("left", "bottom"), title.size = 1, text.size = 0.8) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+
+# Point Pattern Analysis
+#===============================================================
+
+# -------------- Density Related Skyrise Greenery Analysis --------------
+
+require(spatstat)
+library(raster)
+library(oldtmaptools)
+
+# KDE
+skyrise_dens <- smooth_map(sf_skyrise_greenery, bandwidth = choose_bw(sf_skyrise_greenery$geometry))
+tmap_mode('view')
+tm_shape(skyrise_dens$raster) + tm_raster(title="Count") +
+  tm_shape(sf_planning_area) + tm_fill() + tm_borders(alpha=0.5) +
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+# Hexagon Bin
+skyrise_hex <- hexbin_map(as(sf_skyrise_greenery, "Spatial"), bins=25)
+tm_shape(skyrise_hex) + tm_fill(col='z',title='Count',alpha=1) +
+  tm_shape(sf_planning_area) +tm_borders(alpha=0.5) +
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+# Quadrat
+Q <- quadratcount(as.ppp(sf_skyrise_greenery), nx=8, ny=6)
+plot(as.ppp(sf_skyrise_greenery), pch=20, cols="grey80", main=NULL)  # Plot points
+plot(Q, add=TRUE)
+
+Q.d <- intensity(Q)
+plot(intensity(Q, image=TRUE, col = heat.colors(2)), main=NULL, las=1)  # Plot density raster
+plot(as.ppp(sf_skyrise_greenery), pch=10, cex=0.6, col=rgb(0,0,0,.5), add=TRUE)  # Add points
+
+# Kernel Density
+K1 <- density(as.ppp(sf_skyrise_greenery))
+plot(K1, main=NULL, las=1)
+contour(K1, add=TRUE)
+
+
+# -------------- Distance Related Skyrise Greenery Analysis --------------
+## k-function
+kf <- Kest(as.ppp(sf_skyrise_greenery$geometry), correction = 'border')
+plot(kf)
+plot(kf, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
+kf.env <- envelope(as.ppp(sf_skyrise_greenery$geometry),Kest,correction="border")
+plot(kf.env, main="K Function Plot (Skyrise Greenery)", xlim=c(0, 150))
+
+## l-function
+lf.env <- envelope(as.ppp(sf_skyrise_greenery$geometry),Lest,correction="border")
+lf <- Lest(as.ppp(sf_skyrise_greenery$geometry), main=NULL,correction="border")
+plot(lf.env, main = "L Function Envelop (Skyrise Greenery", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0.2, 0)))
+plot(lf, . -r ~ r, main="", las=1, legendargs=list(cex=0.8, xpd=TRUE, inset=c(0.2, 0)), xlab="", ylab="", xlim=c(0,100))
+title(main = "L Function (Skyrise Greenery)", x = "r", y = "L(r)")
+
+## g-function
+gf <- Gest(as.ppp(sf_skyrise_greenery$geometry), main=NULL,correction="border")
+gf.env <- envelope(as.ppp(sf_skyrise_greenery$geometry),Gest,correction="border")
+plot(gf.env, main = "g Function (Skyrise Greenery)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)))
+plot(gf.env, main = "g Function (Skyrise Greenery)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)), xlim=c(0, 150))
