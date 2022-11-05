@@ -7,6 +7,7 @@
 # 2. skyrise_greenery (shp folder)
 # 3. addresses_full.csv (csv file)
 # 4. high_aedes_population_regions (shp folder)
+# 5. skyrise_hdb (shp folder)
 
 library(rgdal)
 library(dplyr)
@@ -87,7 +88,20 @@ sf_combinded_skyrise_greenery_and_hdb <- rbind(
 sf_combinded_skyrise_greenery_and_hdb <- st_join(sf_combinded_skyrise_greenery_and_hdb, sf_planning_area, join = st_within)
 row.names(sf_combinded_skyrise_greenery_and_hdb) <- NULL
 
-
+# Classifying all buildings into 3 types:
+# 1. HDB skyrise greenery
+# 2. Non-HDB skyrise greenery
+# 3. HDB non-skyrise greenery
+sf_hdb <- st_as_sf(readOGR("data/skyrise_hdb"))
+sf_combinded_skyrise_greenery_and_hdb$type <- apply(sf_combinded_skyrise_greenery_and_hdb, MARGIN=1, FUN=function(x) {
+  if (x["ADDRESS"] %in% sf_hdb$ADDRESS_1) {
+    return("HDB skyrise greenery")
+  } else if (x["greenery"] == TRUE) {
+    return("Non-HDB skyrise greenery")
+  } else {
+    return("HDB non-skyrise greenery")
+  }
+})
 
 
 # Load Aedes Region Dataset
@@ -100,7 +114,7 @@ head(sf_aedes_regions)
 
 
 # Quick Plot to Visualise Locations of Aedes Hotspot and Skyrise Greenery
-tmap_mode("plot")
+tmap_mode("view")
 tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col="grey", alpha=1) +
   tm_shape(sf_skyrise_hdb) + tm_dots(col="red") +
   tm_shape(sf_combinded_skyrise_greenery_and_hdb %>% filter(greenery == TRUE)) + tm_symbols(col="green", alpha=0.5, size = 0.1) +
@@ -112,6 +126,52 @@ tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.8) + tm_borders(col=
   ) +  
   tm_legend(position=c("right", "bottom"), title.size = 1, text.size = 0.8) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+
+# EDA on Area of Aedes Hotspot Polygons
+sf_aedes_regions$area_sqkm <- as.numeric(st_area(sf_aedes_regions)) / 10^6
+quantile(sf_aedes_regions$area_sqkm)
+ggplot(sf_aedes_regions, aes(x=area_sqkm)) + geom_boxplot(fill="darkorange", alpha=0.5) +
+  labs(y = "", x = "Area (sq km) of Aedes Hotspot")
+
+
+# EDA on % of Skyrise Greenery and HDB within Aedes Hotspots
+slices_greenery <- c(
+  nrow(st_join(sf_skyrise_greenery, sf_aedes_regions, st_within) %>% dplyr::filter(!is.na(desc))),
+  nrow(sf_skyrise_greenery) - nrow(st_join(sf_skyrise_greenery, sf_aedes_regions, st_within) %>% dplyr::filter(!is.na(desc)))
+)
+pie(slices_greenery, 
+    labels=c(
+      paste("Within Aedes Hotspot", slices_greenery[1], sep = " - "), 
+      paste("Not Within Aedes Hotspot", slices_greenery[2], sep = " - ")
+    ), 
+    col=c("#e67c67", "#b8ffbc")
+)
+
+slices_non_greenery_hdb <- c(
+  nrow(st_join(sf_hdb %>% filter(greenery==FALSE), sf_aedes_regions, st_within) %>% dplyr::filter(!is.na(desc))),
+  nrow(sf_hdb %>% filter(greenery==FALSE)) - nrow(st_join(sf_hdb %>% filter(greenery==FALSE), sf_aedes_regions, st_within) %>% dplyr::filter(!is.na(desc)))
+)
+pie(slices_non_greenery_hdb, 
+    labels=c(
+      paste("Within Aedes Hotspot", slices_non_greenery_hdb[1], sep = " - "), 
+      paste("Not Within Aedes Hotspot", slices_non_greenery_hdb[2], sep = " - ")
+    ), 
+    col=c("#e67c67", "#b8ffbc")
+  )
+
+slices_greenery_hdb <- c(
+  nrow(st_join(sf_hdb %>% filter(greenery==TRUE), sf_aedes_regions, st_within) %>% dplyr::filter(!is.na(desc))),
+  nrow(sf_hdb %>% filter(greenery==TRUE)) - nrow(st_join(sf_hdb %>% filter(greenery==TRUE), sf_aedes_regions, st_within) %>% dplyr::filter(!is.na(desc)))
+)
+pie(slices_greenery_hdb, 
+    labels=c(
+      paste("Within Aedes Hotspot", slices_greenery_hdb[1], sep = " - "), 
+      paste("Not Within Aedes Hotspot", slices_greenery_hdb[2], sep = " - ")
+    ), 
+    col=c("#e67c67", "#b8ffbc")
+)
+
 
 
 # Exploratory Spatial Data Analysis across Planning Area
@@ -191,21 +251,34 @@ tm_shape(sf_combinded_skyrise_greenery_and_hdb[2,] %>% mutate(ADDRESS = str_to_t
   tm_shape(sf_aedes_regions[nearest_hotspot[2],]) + tm_fill(col="red", alpha = 0.8) + tm_borders("yellow") +
   tm_text("desc", col="red", just="right", xmod=2.25, size = 1)
 
+
 # Box Plot Visualisation
 sf_combinded_skyrise_greenery_and_hdb %>%
-  ggplot( aes(x=distance_from_nearest_hotspot, y=greenery, fill=greenery)) +
+  ggplot( aes(x=distance_from_nearest_hotspot, y=type, fill=greenery)) +
   geom_boxplot(outlier.shape = 2, outlier.size = 1) +
   scale_fill_manual(values=c("#e67c67", "#b8ffbc")) +
   xlab("Distance from Aedes Hotspot (m)") +
-  ylab("Skyrise Greenery")
+  ylab("") +
+  theme_light()
 
-# Density Plot Visualisation
-sf_combinded_skyrise_greenery_and_hdb %>%
+# Density Plot Visualisation (HDB skyrise greenery vs HDB non-skyrise greenery)
+sf_combinded_skyrise_greenery_and_hdb %>% filter(type != "Non-HDB skyrise greenery") %>%
   ggplot( aes(x=distance_from_nearest_hotspot, group=greenery, fill=greenery)) +
   geom_density(alpha=0.6) +
   scale_fill_manual(values=c("#e67c67", "#b8ffbc")) +
   xlab("Distance from Aedes Hotspot (m)") +
-  ylab("Density")
+  ylab("Density") +
+  theme_light()
+
+
+# Density Plot Visualisation (HDB skyrise greenery vs HDB non-skyrise greenery)
+sf_combinded_skyrise_greenery_and_hdb %>% filter(type != "HDB non-skyrise greenery") %>%
+  ggplot( aes(x=distance_from_nearest_hotspot, group=type, fill=type)) +
+  geom_density(alpha=0.6) +
+  scale_fill_manual(values=c("darkgreen", "#b8ffbc")) +
+  xlab("Distance from Aedes Hotspot (m)") +
+  ylab("Density") +
+  theme_light()
 
 
 # Aggregating across Planning Area, Join with Planning Area dataset
@@ -297,23 +370,43 @@ tm_shape(sf_diff_in_dist_from_aedes_pln_area_w_both) +
   tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 
+
 # Aedes Hotspots Centroid Point Pattern Analysis
 #===============================================================
 
 # Taking Centroid for each Hotspot Polygons
 sf_aedes_regions_centroid <- st_centroid(sf_aedes_regions)
 
-# Density - KDE
+
+###--- Density-related Analysis ---###
+
+# Quadrat
+Q_aedes <- quadratcount(as.ppp(sf_aedes_regions_centroid), nx=8, ny=6)
+plot(as.ppp(sf_aedes_regions_centroid$geometry), pch=20, cols="grey90", main=NULL)  # Plot points
+plot(Q_aedes, add=TRUE)
+
+# KDE
 aedes_dens <- smooth_map(sf_aedes_regions_centroid, bandwidth = choose_bw(sf_aedes_regions_centroid$geometry))
-tmap_mode('view')
+tmap_mode('plot')
 tm_shape(aedes_dens$raster) + tm_raster() +
+  tm_shape(sf_planning_area) +tm_borders() +
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+# Hexagonal Binning
+aedes_hex <- hexbin_map(as(sf_aedes_regions_centroid, "Spatial"), bins=25)
+tmap_mode('plot')
+tm_shape(aedes_hex) + tm_fill(col='z',title='Count',alpha=1) +
   tm_shape(sf_planning_area) +tm_borders(alpha=0.5) +
-  tm_shape(sf_combinded_skyrise_greenery_and_hdb %>% filter(greenery == TRUE)) + tm_symbols(col="darkgreen", alpha=0.5, size = 0.1)
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 
-# Distance - K-Function
-kf_aedes_hotspot <- Kest(as.ppp(sf_aedes_regions_centroid), correction = 'border')
-plot(kf_aedes_hotspot, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
-kf_aedes_hotspot.env <- envelope(as.ppp(sf_aedes_regions_centroid),Kest,correction="border")
-plot(kf_aedes_hotspot.env)
+###--- Distance-related Analysis ---###
+
+# G-Function
+gf_aedes <- Gest(as.ppp(sf_aedes_regions_centroid$geometry), main=NULL,correction="border")
+gf_aedes.env <- envelope(as.ppp(sf_aedes_regions_centroid$geometry),Gest,correction="border")
+plot(gf_aedes.env, main = "g Function (Aedes Hotspot Centroid)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)))
+plot(gf_aedes.env, main = "g Function (Aedes Hotspot Centroid)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)), xlim=c(100, 300))
 

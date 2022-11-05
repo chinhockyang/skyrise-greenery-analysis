@@ -238,45 +238,98 @@ tm_shape(sf_hdb_planning_area_info) +
 
 # Point Pattern Analysis
 #===============================================================
+# -------------- All HDB -------------- #
 
-# -------------- Distance Related Skyrise HDB Analysis --------------
+###--- Density-related Analysis ---###
 
+# Quadrat
+Q_hdb <- quadratcount(as.ppp(sf_hdb), nx=8, ny=6)
+plot(as.ppp(sf_hdb$geometry), pch=20, cols="grey90", main=NULL)  # Plot points
+plot(Q_hdb, add=TRUE)
+Q_hdb.d <- intensity(Q_hdb)
+plot(intensity(Q_hdb, image=TRUE), main=NULL, las=1)  # Plot density raster
+plot(as.ppp(sf_hdb$geometry), pch=20, cex=1, cols="grey70", add=TRUE)  # Add points
+
+# KDE
+hdb_dens <- smooth_map(sf_hdb, bandwidth = choose_bw(sf_hdb$geometry))
+tmap_mode('plot')
+tm_shape(hdb_dens$raster) + tm_raster() +
+  tm_shape(sf_planning_area) +tm_borders() +
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+# Hexagonal Binning
+hdb_hex <- hexbin_map(as(sf_hdb, "Spatial"), bins=25)
+tm_shape(hdb_hex) + tm_fill(col='z',title='Count',alpha=1) +
+  tm_shape(sf_planning_area) +tm_borders(alpha=0.5) +
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+
+###--- Distance-related Analysis ---###
+
+# K-Function
+kf_hdb <- Kest(as.ppp(sf_hdb$geometry), correction = 'border')
+plot(kf_hdb, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
+kf_hdb.env <- envelope(as.ppp(sf_hdb$geometry),Kest,correction="border")
+plot(kf_hdb.env)
+
+# L-Function
+lf_hdb.env <- envelope(as.ppp(sf_hdb$geometry),Lest,correction="border")
+lf_hdb <- Lest(as.ppp(sf_hdb$geometry), main=NULL,correction="border")
+plot(lf_hdb.env)
+plot(lf_hdb, . -r ~ r, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE, inset=c(1.01, 0)))
+
+# G-Function
+gf_hdb <- Gest(as.ppp(sf_hdb$geometry), main=NULL,correction="border")
+gf_hdb.env <- envelope(as.ppp(sf_hdb$geometry),Gest,correction="border")
+plot(gf_hdb.env, main = "g Function (HDB)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)))
+plot(gf_hdb.env, main = "g Function (HDB)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)), xlim=c(0, 40))
+
+# -------------- Skyrise HDB -------------- #
+
+###--- Density-related Analysis ---###
+
+# Quadrat
+Q_skyrise_hdb <- quadratcount(as.ppp(sf_skyrise_hdb), nx=8, ny=6)
+plot(as.ppp(sf_skyrise_hdb$geometry), pch=20, cols="grey70", main=NULL)  # Plot points
+plot(Q_skyrise_hdb, add=TRUE)
+
+# KDE
+skyrise_hdb_dens <- smooth_map(sf_skyrise_hdb, bandwidth = choose_bw(sf_skyrise_hdb$geometry))
+tmap_mode('plot')
+tm_shape(skyrise_hdb_dens$raster) + tm_raster() +
+  tm_shape(sf_planning_area) +tm_borders() +
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+# Hex Binning
+skyrise_hdb_hex <- hexbin_map(as(sf_skyrise_hdb, "Spatial"), bins=25)
+tm_shape(skyrise_hdb_hex) + tm_fill(col='z',title='Count',alpha=1) +
+  tm_shape(sf_planning_area) +tm_borders(alpha=0.5) +
+  tm_legend(position=c("left", "top"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
+
+###--- Distance-related Analysis ---###
+
+# K-Function
 kf <- Kest(as.ppp(sf_skyrise_hdb$geometry), correction = 'border')
 plot(kf, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE))
 kf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Kest,correction="border")
 plot(kf.env)
 
-## Envelop
+# L-Function
 lf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Lest,correction="border")
 lf <- Lest(as.ppp(sf_skyrise_hdb$geometry), main=NULL,correction="border")
 plot(lf.env)
 plot(lf, . -r ~ r, main=NULL, las=1, legendargs=list(cex=0.8, xpd=TRUE, inset=c(1.01, 0)))
 
+# G-Function
+gf_skyrise_hdb <- Gest(as.ppp(sf_skyrise_hdb$geometry), main=NULL,correction="border")
+gf_skyrise_hdb.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Gest,correction="border")
+plot(gf_skyrise_hdb.env)
 
-## Envelop
-gf <- Gest(as.ppp(sf_skyrise_hdb$geometry), main=NULL,correction="border")
-gf.env <- envelope(as.ppp(sf_skyrise_hdb$geometry),Gest,correction="border")
-plot(gf.env)
+plot(gf_skyrise_hdb.env, main = "g Function (Skyrise Greenery HDB)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)))
+plot(gf_skyrise_hdb.env, main = "g Function (Skyrise Greenery HDB)", legendargs=list(cex=0.8, xpd=TRUE, inset=c(0, 0)), xlim=c(0, 80))
 
-# Pair Correlation Function g
-g <- pcf(as.ppp(sf_skyrise_hdb$geometry))
-plot(g)
-
-
-# -------------- Density-Related Skyrise HDB Analysis --------------
-
-# Quadrat
-Q <- quadratcount(as.ppp(sf_skyrise_hdb), nx=6, ny=3)
-plot(as.ppp(sf_skyrise_hdb), pch=20, cols="grey70", main=NULL)  # Plot points
-plot(Q, add=TRUE)
-
-Q.d <- intensity(Q)
-plot(intensity(Q, image=TRUE), main=NULL, las=1)  # Plot density raster
-plot(as.ppp(sf_skyrise_hdb), pch=20, cex=0.6, col=rgb(0,0,0,.5), add=TRUE)  # Add points
-
-# KDE
-skyrise_hdb_dens <- smooth_map(sf_skyrise_hdb, bandwidth = choose_bw(sf_skyrise_hdb$geometry))
-
-tmap_mode('plot')
-  tm_shape(skyrise_hdb_dens$raster) + tm_raster() +
-  tm_shape(sf_subzone) +tm_borders()

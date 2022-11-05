@@ -126,7 +126,9 @@ for (n in 1:5) {
 }
 
 # Visualising SSE across n_order
-plot(temp_hyper_param_tuning)
+ggplot(temp_hyper_param_tuning, aes(x=n, y=rmse)) +
+  geom_point(size=2) +
+  geom_text(label=sprintf("%.2f", temp_hyper_param_tuning$rmse), nudge_x = 0, nudge_y = -0.003)
 ### RESULT: n_order 2 have the lowest rmse
 
 # Create Interpolation
@@ -176,7 +178,9 @@ for (n in 1:5) {
 }
 
 # Visualising SSE across n_order
-plot(rainfall_hyper_param_tuning)
+ggplot(rainfall_hyper_param_tuning, aes(x=n, y=rmse)) +
+  geom_point(size=2) +
+  geom_text(label=sprintf("%.2f", rainfall_hyper_param_tuning$rmse), nudge_x = 0.3, nudge_y = -0.25)
 rainfall_hyper_param_tuning
 ### RESULT: n_order 3 have the lowest rmse
 
