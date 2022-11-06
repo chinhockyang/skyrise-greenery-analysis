@@ -184,3 +184,4 @@ sar.res2$lambda.se
 
 sar.res2$lambda + c(-2,2)*sar.res2$lambda.se
 
+
