@@ -5,6 +5,7 @@
 .DS_Store
 
 data/
+imgs/
 
 /python_files/venv
 /python_files/.env
