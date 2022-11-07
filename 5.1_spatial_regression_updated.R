@@ -121,16 +121,20 @@ skyrise_pln_area_join_with_skyrise[is.na(skyrise_pln_area_join_with_skyrise)] <-
 # density of skyrise greenery = number of skyrise greenery in a subzone / area (in m^2)
 skyrise_pln_area_join_with_skyrise$density <- skyrise_pln_area_join_with_skyrise$n / skyrise_pln_area_join_with_skyrise$area
 
-hist(skyrise_pln_area_join_with_skyrise$density, main=NULL)
+hist(skyrise_pln_area_join_with_skyrise$n, main=NULL)
 
 # -------------- Visualisations --------------
 # Choropleth Chart showing Density of Skyrise Greenery HDBs across Pln Areas
 tm_shape(skyrise_pln_area_join_with_skyrise) + 
-  tm_fill("density", alpha=1, title="Density of Skyrise HDB Across Pln Areas") + tm_borders(alpha=0.9)
+  tm_fill("density", alpha=1, title="Density of Skyrise HDB") + 
+  tm_borders(alpha=0.9) +
+  tm_layout(title = "Density of Skyrise Greenery HDB Across Pln Areas (Subset)")
 
 # Choropleth Chart showing Number of Skyrise Greenery HDBs across Pln Areas
 tm_shape(skyrise_pln_area_join_with_skyrise) + 
-  tm_fill("n", alpha=1, title="Number of Skyrise HDB Across Pln Areas") + tm_borders(alpha=0.9) 
+  tm_fill("n", alpha=1, title="Number of Skyrise HDB") + 
+  tm_borders(alpha=0.9) +
+  tm_layout(title = "Number of Skyrise Greenery HDB Across Pln Areas (Subset)")
 
 ################################################################################
 # 1. Plot Randomly Generated Distributions of Skyrise Greenery 
@@ -176,8 +180,12 @@ tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col='density',title= 'Densi
 # simpang, north-eastern islands, changi bay, tuas
 sp_pln_area_skyrise_info.utm <- sp_pln_area_skyrise_info.utm[-c(51, 52, 53, 44, 42, 27, 11), ]
 
+# drop outliers 
+sp_pln_area_skyrise_info.utm <- subset(sp_pln_area_skyrise_info.utm, n < 20)
+
 # Visualise after dropping islands without neighbours
-tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col='n',title= 'Num of HDBs')
+tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col='n',title= 'No. of Skyrise Greenery HDBs') + 
+  tm_layout(title='Number of Skyrise Greenery HDB Buildings Across Planning Areas') 
 
 ################################################################################
 # 2. Create Neighbour List 
@@ -197,8 +205,23 @@ sp_pln_area_skyrise_info.lw <- nb2listw(sp_pln_area_skyrise_info.nb, zero.policy
 sp_pln_area_skyrise_info.lw
 sp_pln_area_skyrise_info.utm$n.lagged.means <- lag.listw(sp_pln_area_skyrise_info.lw, sp_pln_area_skyrise_info.utm$n)
 
-tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col= 'n.lagged.means',title= 'Num of Skyrise Greenery HDBs (Queen)') +
-  tm_layout(legend.bg.color = "white")
+tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col= 'n.lagged.means',title= 'Num of Skyrise Greenery HDBs') +
+  tm_layout(legend.bg.color = "white", title = "Queen's Case of Neighbour Selection") 
+
+# # Higher Order Contiguity Weights 
+# second.order.queen <- nblag(sp_pln_area_skyrise_info.nb, 2)
+# 
+# # Second order Neighbours 
+# sf.nb.queen2 <- second.order.queen[[2]]
+# 
+# # returns nb object with both 1st and 2nd order neighbours 
+# second.order.queen.cumul <- nblag_cumul(second.order.queen)
+# 
+# str(second.order.queen.cumul)
+# 
+# # Visualising with a Connectivity Graph
+# plot(sp_pln_area_skyrise_info.nb, coords, lwd=.2, col="blue", cex = .5)
+# 
 
 ################################################################################
 # 2B. Rook's Case
@@ -211,8 +234,9 @@ sp_pln_area_skyrise_info.lw2 <- nb2listw(sp_pln_area_skyrise_info.nb2, zero.poli
 sp_pln_area_skyrise_info.lw2
 sp_pln_area_skyrise_info.utm$n.lagged.means2 <- lag.listw(sp_pln_area_skyrise_info.lw2, sp_pln_area_skyrise_info.utm$n)
 
-tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col= 'n.lagged.means2',title= 'Num of Skyrise Greenery HDBs (Rook)') +
-  tm_layout(legend.bg.color = "white")
+tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col= 'n.lagged.means2',title= 'Num of Skyrise Greenery HDBs') +
+  tm_layout(legend.bg.color = "white", title = "Rook's Case of Neighbour Selection") 
+
 
 ################################################################################
 # 3. Computing Moran's I Coefficients
@@ -242,9 +266,10 @@ sp_pln_area_skyrise_info.utm$lI <- localmoran(sp_pln_area_skyrise_info.utm$n,
 
 # for queen
 tm_shape(sp_pln_area_skyrise_info.utm,unit='miles') + 
-  tm_polygons(col= 'lI',title= "Local Moran's I (Queen)",legend.format=list(flag= "+"),midpoint = NA) +
+  tm_polygons(col= 'lI', title= "Local Moran's I (Queen)",legend.format=list(flag= "+"),midpoint = NA) +
   tm_style('col_blind') + tm_scale_bar(width= 0.15) +
-  tm_layout(legend.position = c("right", "top"), legend.text.size= 0.6, asp=1.8)
+  tm_layout(legend.position = c("left", "top"), legend.text.size= 0.6, asp=1.8, 
+            title = 'Plot of Local Moran\'s I values under Queen\'s case')
 
 
 #Mapping the p values of Local Moran's I  
@@ -258,21 +283,23 @@ tm_shape(sp_pln_area_skyrise_info.utm,unit= 'miles') +
   tm_polygons(col= 'pval' , title= "p-value" , breaks= c(0, 0.01, 0.05, 0.10, 1),
               border.col = "black",palette = "-Greens") +
   tm_scale_bar(width=0.15) +
-  tm_layout(legend.position = c("right", "top"),asp=1.8)
+  tm_layout(legend.position = c("right", "top"),asp=1.8,
+            title = 'Plot of p-values under Queen\'s case (Local Moran\'s I)')
 
 ################################################################################
 # 4. Conducting Spatial Autoregression
 ################################################################################
-#SAR model without predictor variable
+#CAR model without predictor variable
 #---------------------------------------------------------------
-sar.res <- spautolm(n~ 1, listw=sp_pln_area_skyrise_info.lw, data=sp_pln_area_skyrise_info.utm)
-sar.res
+car.res <- spautolm(n~ 1, listw=sp_pln_area_skyrise_info.lw, 
+                    data=sp_pln_area_skyrise_info.utm, family="CAR")
+car.res
 
-summary(sar.res)
+summary(car.res)
 
 #Estimation of standard error of I  
 #---------------------------------------------------------------
-sar.res$lambda.se
+car.res$lambda.se
 
-sar.res$lambda + c(-2,2)*sar.res$lambda.se
+car.res$lambda + c(-2,2)*car.res$lambda.se
 
