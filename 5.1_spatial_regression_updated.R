@@ -50,6 +50,10 @@ hdb_average_prices <- hdb_prices %>%
   group_by(POSTAL_CODE) %>% 
   summarise_at(vars(RESALE_PRICE), list(name = mean))
 
+# Convert to Sf
+sf_hdb_prices <- st_as_sf(hdb_prices, coords = c("LONGITUDE", "LATITUDE"), crs= "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+sf_hdb_prices <- st_transform(sf_hdb_prices, crs= 3414)
+
 ################################################################################
 # 3. Skyrise Greenery Dataset (General)
 ################################################################################
@@ -101,15 +105,15 @@ st_crs(sf_skyrise_hdb)
 st_crs(sf_planning_area)
 
 skyrise_pln_area_join <- st_join(sf_skyrise_hdb, 
-                                sf_planning_area, 
-                                join = st_within, 
-                                left = TRUE)  %>% 
+                                 sf_planning_area, 
+                                 join = st_within, 
+                                 left = TRUE)  %>% 
   dplyr::select("ADDRESS", "pln_area", "area", "geometry") %>%
   group_by(pln_area) %>% count()
 
 skyrise_pln_area_join_with_skyrise <- st_join(sf_planning_area, 
-                                               skyrise_pln_area_join, 
-                                               join = st_contains) 
+                                              skyrise_pln_area_join, 
+                                              join = st_contains) 
 
 # drop duplicate pln_area column
 skyrise_pln_area_join_with_skyrise <- subset(skyrise_pln_area_join_with_skyrise, select=-c(pln_area.y))
@@ -137,11 +141,48 @@ tm_shape(skyrise_pln_area_join_with_skyrise) +
   tm_layout(title = "Number of Skyrise Greenery HDB Across Pln Areas (Subset)")
 
 ################################################################################
+# 1. Combining HDB Prices with Planning Area geometry 
+################################################################################
+# Check that both SPDFs have the same CRS
+st_crs(hdb_average_prices)
+st_crs(sf_planning_area)
+
+# Check that both SPDFs have the same CRS
+st_crs(sf_hdb_prices)
+st_crs(sf_planning_area)
+
+hdb_prices_pln_area_join <- st_join(sf_hdb_prices, 
+                                    sf_planning_area, 
+                                    join = st_within, 
+                                    left = TRUE)  %>% 
+  dplyr::select("ADDRESS", "pln_area", "geometry", "RESALE_PRICE") %>%
+  group_by(pln_area) %>% summarise_at(vars(RESALE_PRICE), list(resale_price = mean))
+
+hdb_prices_pln_area_join_with_prices <- st_join(sf_planning_area, 
+                                                hdb_prices_pln_area_join, 
+                                                join = st_contains) 
+
+hdb_prices_pln_area_join_with_prices <- subset(hdb_prices_pln_area_join_with_prices, select=-c(pln_area.y))
+
+# Choropleth Chart showing Number of Skyrise Greenery HDBs across Pln Areas
+tm_shape(hdb_prices_pln_area_join_with_prices) + 
+  tm_fill("resale_price", alpha=1, title="Resale Prices of HDBs") + 
+  tm_borders(alpha=0.9) +
+  tm_layout(title = "Average Resale Prices of HDBs Across Pln Areas")
+
+# Save file
+# st_write(hdb_prices_pln_area_join_with_prices, "hdb_prices_pln_area.shp", delete_layer = T)
+
+################################################################################
 # 1. Plot Randomly Generated Distributions of Skyrise Greenery 
 ################################################################################
 # Create .utm file
-sp_pln_area_skyrise_info <- sf:::as_Spatial(skyrise_pln_area_join_with_skyrise)
-sp_pln_area_skyrise_info <- subset(sp_pln_area_skyrise_info, select=c(pln_area.x, n, density))
+# Join Skyrise HDB Pln Area SPDF with Resale Prices
+skyrise_prices_pln_area_info <- st_join(skyrise_pln_area_join_with_skyrise, 
+                                                hdb_prices_pln_area_join, 
+                                                join = st_contains) 
+sp_pln_area_skyrise_info <- sf:::as_Spatial(skyrise_prices_pln_area_info)
+sp_pln_area_skyrise_info <- subset(sp_pln_area_skyrise_info, select=c(pln_area.x, n, density, resale_price))
 sp_pln_area_skyrise_info.utm <-spTransform(sp_pln_area_skyrise_info, CRS("+init=epsg:3414"))
 
 #### DENSITY
@@ -254,12 +295,12 @@ moran.test(sp_pln_area_skyrise_info.utm$n,
 mc <- moran.mc(sp_pln_area_skyrise_info.utm$n,
                sp_pln_area_skyrise_info.lw,
                10000, zero.policy = TRUE)
-
+mc 
 plot(mc)
 
 #The function of Local Moran's I  
 # Mapping Local Moran's I
-tmap_mode('plot')
+tmap_mode('view')
 sp_pln_area_skyrise_info.utm$lI <- localmoran(sp_pln_area_skyrise_info.utm$n,
                                               sp_pln_area_skyrise_info.lw, 
                                               zero.policy = TRUE)[, 1]
@@ -291,7 +332,7 @@ tm_shape(sp_pln_area_skyrise_info.utm,unit= 'miles') +
 ################################################################################
 #CAR model without predictor variable
 #---------------------------------------------------------------
-car.res <- spautolm(n~ 1, listw=sp_pln_area_skyrise_info.lw, 
+car.res <- spautolm(n~resale_price, listw=sp_pln_area_skyrise_info.lw, 
                     data=sp_pln_area_skyrise_info.utm, family="CAR")
 car.res
 
