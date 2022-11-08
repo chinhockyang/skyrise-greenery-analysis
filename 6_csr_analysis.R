@@ -91,8 +91,9 @@ ann.p <- mean(nndist(skyrise_ppp.km, k=1))
 ann.p #avg nn distance is 379.6014m
 
 ## ---------- Running CSR ------------ ##
-# Null Hypothesis (Base model) - location of skyrise greenery consistent with CSR
 n <- 599L 
+
+# Null Hypothesis (Base model) - location of skyrise greenery consistent with CSR
 ann.r <- vector(length = n) 
 for (i in 1:n){ 
   rand.p <- rpoint(n=skyrise_ppp.km$n, win=planning_area.owin.km) 
