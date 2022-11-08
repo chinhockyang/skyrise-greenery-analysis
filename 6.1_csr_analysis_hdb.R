@@ -80,21 +80,21 @@ tm_shape(sf_hdb_info_across_planning_area) + tm_polygons("floor", title="Mean fl
 # Hypothesis Test 
 #===============================================================
 # Converting data for use in hypo test
-pop_den.im <- as.im(pop_den.r)
+#pop_den.im <- as.im(pop_den.r)
 skyrise_hdb_ppp <- as.ppp(sf_hdb_skyrise_greenery.csr)
-planning_area.owin <- as.owin(sf_hdb_info_across_planning_area)
-r_temp.im <- as.im(r_temp.m) #from temp interpolation
-r_rainfall.im <- as.im(r_rainfall.m) #from rainfall interpolation
+planning_area_hdb.owin <- as.owin(sf_hdb_info_across_planning_area)
+#r_temp.im <- as.im(r_temp.m) #from temp interpolation
+#r_rainfall.im <- as.im(r_rainfall.m) #from rainfall interpolation
 hdb_floor.im <- as.im(hdb_floor.r)
 hdb_resale_px.im <- as.im(hdb_resale_px.r)
 
 
 # Rescale to be based on km
 skyrise_hdb_ppp.km <- rescale(skyrise_hdb_ppp, 1000, "km")
-pop_den.im.km <- rescale(pop_den.im, 1000, "km")
-planning_area.owin.km <- rescale(planning_area.owin, 1000, "km")
-r_temp.im.km <- rescale(r_temp.im, 1000, "km")
-r_rainfall.im.km <- rescale(r_rainfall.im, 1000, "km")
+#pop_den.im.km <- rescale(pop_den.im, 1000, "km")
+planning_area_hdb.owin.km <- rescale(planning_area_hdb.owin, 1000, "km")
+#r_temp.im.km <- rescale(r_temp.im, 1000, "km")
+#r_rainfall.im.km <- rescale(r_rainfall.im, 1000, "km")
 hdb_floor.im.km <- rescale(hdb_floor.im, 1000, "km")
 hdb_resale_px.im.km <- rescale(hdb_resale_px.im, 1000, "km")
 
@@ -111,7 +111,7 @@ ann.p #0.3827644km
 n <- 599L 
 ann.hdb.r <- vector(length = n) 
 for (i in 1:n){ 
-  rand.p <- rpoint(n=skyrise_hdb_ppp.km$n, win=planning_area.owin.km) 
+  rand.p <- rpoint(n=skyrise_hdb_ppp.km$n, win=planning_area_hdb.owin.km) 
   ann.hdb.r[i] <- mean(nndist(rand.p, k=1))
 } 
 
@@ -125,10 +125,10 @@ abline(v=ann.p, col="blue")
 ## Alternative Hypothesis 1 - with the influence of pop density
 ann.hdb.r_alt1 <- vector(length=n) 
 for (i in 1:n){ 
-  rand.p.h1 <- rpoint(n=skyrise_hdb_ppp.km$n, f=pop_den.im.km, win=planning_area.owin.km)
+  rand.p.h1 <- rpoint(n=skyrise_hdb_ppp.km$n, f=pop_den.im.km, win=planning_area_hdb.owin.km)
   ann.hdb.r_alt1[i] <- mean(nndist(rand.p.h1, k=1)) 
 } 
-Window(rand.p.h1) <- planning_area.owin.km
+Window(rand.p.h1) <- planning_area_hdb.owin.km
 plot(rand.p.h1, pch=16, main="Hypothesis Testing (Population Density)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
 hist(ann.hdb.r_alt1, main="Hypothesis Testing (Population Density)", las=1, breaks=40, col="bisque", xlim=range(ann.p-0.1, ann.hdb.r_alt1))
@@ -143,10 +143,10 @@ p #0.001666667
 ## Alternative Hypothesis 2 - with the influence of temperature
 ann.hdb.r_alt2 <- vector(length=n) 
 for (i in 1:n){ 
-  rand.p.h2 <- rpoint(n=skyrise_hdb_ppp.km$n, f=r_temp.im.km, win=planning_area.owin.km)
+  rand.p.h2 <- rpoint(n=skyrise_hdb_ppp.km$n, f=r_temp.im.km, win=planning_area_hdb.owin.km)
   ann.hdb.r_alt2[i] <- mean(nndist(rand.p.h2, k=1)) 
 } 
-Window(rand.p.h2) <- planning_area.owin.km
+Window(rand.p.h2) <- planning_area_hdb.owin.km
 plot(rand.p.h2, pch=16, main="Hypothesis Testing (Temperature)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
 hist(ann.hdb.r_alt2, main="Hypothesis Testing (Temperature)", las=1, breaks=40, col="bisque", xlim=range(ann.p-0.15, ann.hdb.r_alt2))
@@ -160,10 +160,10 @@ p2
 ## Alternative Hypothesis 3 - with the influence of rainfall
 ann.hdb.r_alt3 <- vector(length=n) 
 for (i in 1:n){ 
-  rand.p.h3 <- rpoint(n=skyrise_hdb_ppp.km$n, f=r_rainfall.im.km, win=planning_area.owin.km)
+  rand.p.h3 <- rpoint(n=skyrise_hdb_ppp.km$n, f=r_rainfall.im.km, win=planning_area_hdb.owin.km)
   ann.hdb.r_alt3[i] <- mean(nndist(rand.p.h3, k=1)) 
 } 
-Window(rand.p.h3) <- planning_area.owin.km
+Window(rand.p.h3) <- planning_area_hdb.owin.km
 plot(rand.p.h3, pch=16, main="Hypothesis Testing (Rainfall)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
 hist(ann.hdb.r_alt3, main="Hypothesis Testing (Rainfall)", las=1, breaks=40, col="bisque", xlim=range(ann.p-0.15, ann.hdb.r_alt3+0.1))
@@ -177,10 +177,10 @@ p3
 ## Alternative Hypothesis 4 - with the hdb height (floors)
 ann.hdb.r_alt4 <- vector(length=n) 
 for (i in 1:n){ 
-  rand.p.h4 <- rpoint(n=skyrise_hdb_ppp.km$n, f=hdb_floor.im.km, win=planning_area.owin.km)
+  rand.p.h4 <- rpoint(n=skyrise_hdb_ppp.km$n, f=hdb_floor.im.km, win=planning_area_hdb.owin.km)
   ann.hdb.r_alt4[i] <- mean(nndist(rand.p.h4, k=1)) 
 } 
-Window(rand.p.h4) <- planning_area.owin.km
+Window(rand.p.h4) <- planning_area_hdb.owin.km
 plot(rand.p.h4, pch=16, main="Hypothesis Testing (HDB Floors)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
 hist(ann.hdb.r_alt4, main="Hypothesis Testing (HDB Floors)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.hdb.r_alt4))
@@ -194,10 +194,10 @@ p4
 ## Alternative Hypothesis 5 - with hdb resale prices
 ann.hdb.r_alt5 <- vector(length=n) 
 for (i in 1:n){ 
-  rand.p.h5 <- rpoint(n=skyrise_hdb_ppp.km$n, f=hdb_resale_px.im.km, win=planning_area.owin.km)
+  rand.p.h5 <- rpoint(n=skyrise_hdb_ppp.km$n, f=hdb_resale_px.im.km, win=planning_area_hdb.owin.km)
   ann.hdb.r_alt5[i] <- mean(nndist(rand.p.h5, k=1)) 
 } 
-Window(rand.p.h5) <- planning_area.owin.km
+Window(rand.p.h5) <- planning_area_hdb.owin.km
 plot(rand.p.h5, pch=16, main="Hypothesis Testing (HDB Resale Prices)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
 hist(ann.hdb.r_alt5, main="Hypothesis Testing (HDB Resale Prices)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.hdb.r_alt5))
@@ -235,13 +235,13 @@ hdb_ppm_5
 
 
 #ANOVA Test
-anova(hdb_ppm_0, hdb_ppm_1, hdb_ppm_2, hdb_ppm_3, hdb_ppm_4, hdb_ppm_5, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_1, hdb_ppm_2, hdb_ppm_3, hdb_ppm_4, hdb_ppm_5, test="LRT")
 
-anova(ppm_h0, ppm_1, test="LRT")
-anova(ppm_h0, ppm_2, test="LRT")
-anova(ppm_h0, ppm_3, test="LRT")
-anova(ppm_h0, ppm_4, test="LRT")
-anova(ppm_h0, ppm_5, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_1, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_2, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_3, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_4, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_5, test="LRT")
 
 
 
