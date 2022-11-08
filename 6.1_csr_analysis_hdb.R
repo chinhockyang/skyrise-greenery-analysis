@@ -2,7 +2,7 @@
 #===============================================================
 
 # Data Files Required:
-# 1. onemap_planningarea (shp folder)
+# 1. onemap_subzone (shp folder)
 # 2. skyrise_hdb (shp folder)
 # 3. planning area population for density calculation (csv)
 # 4. hdb_info_across_planning_area (shp folder)
