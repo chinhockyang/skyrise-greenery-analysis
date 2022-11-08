@@ -14,7 +14,6 @@ library(raster)
 library(sf)
 library(spatstat)
 library(tmap)
-library(ggplot2)
 library(raster)
 library(units)
 
@@ -99,8 +98,8 @@ r_rainfall.im.km <- rescale(r_rainfall.im, 1000, "km")
 hdb_floor.im.km <- rescale(hdb_floor.im, 1000, "km")
 hdb_resale_px.im.km <- rescale(hdb_resale_px.im, 1000, "km")
 
-test <- raster::stack(pop_den.r, hdb_floor.r, hdb_resale_px.r)
-raster.cor.matrix(test)
+#test <- raster::stack(pop_den.r, hdb_floor.r, hdb_resale_px.r)
+#raster.cor.matrix(test)
 
 
 ann.p <- mean(nndist(skyrise_hdb_ppp.km, k=1)) 

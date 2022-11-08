@@ -12,7 +12,6 @@ library(raster)
 library(sf)
 library(spatstat)
 library(tmap)
-library(ggplot2)
 library(raster)
 library(units) # change area units to km
 
