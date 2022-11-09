@@ -226,7 +226,7 @@ sp_pln_area_skyrise_info.utm <- subset(sp_pln_area_skyrise_info.utm, n < 20)
 
 # Visualise after dropping islands without neighbours
 tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col='n',title= 'No. of Skyrise Greenery HDBs') + 
-  tm_layout(title='Number of Skyrise Greenery HDB Buildings Across Planning Areas') 
+  tm_layout(legend.position=c("left", "top")) 
 
 ################################################################################
 # 2. Create Neighbour List 
@@ -244,10 +244,10 @@ sp_pln_area_skyrise_info.nb
 # Convert the neighbour list to a listw object
 sp_pln_area_skyrise_info.lw <- nb2listw(sp_pln_area_skyrise_info.nb, zero.policy = TRUE)
 sp_pln_area_skyrise_info.lw
-sp_pln_area_skyrise_info.utm$n.lagged.means <- lag.listw(sp_pln_area_skyrise_info.lw, sp_pln_area_skyrise_info.utm$n)
-
-tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col= 'n.lagged.means',title= 'Num of Skyrise Greenery HDBs') +
-  tm_layout(legend.bg.color = "white", title = "Queen's Case of Neighbour Selection") 
+sp_pln_area_skyrise_info.utm$density.lagged.means <- lag.listw(sp_pln_area_skyrise_info.lw, sp_pln_area_skyrise_info.utm$density)
+sp_pln_area_skyrise_info.utm$density
+tm_shape(sp_pln_area_skyrise_info.utm) + tm_polygons(col= 'n.lagged.means',title= 'Num of Skyrise Greenery HDBs') 
+  # + tm_layout(legend.bg.color = "white", title = "Queen's Case of Neighbour Selection") 
 
 # # Higher Order Contiguity Weights 
 # second.order.queen <- nblag(sp_pln_area_skyrise_info.nb, 2)
