@@ -6,7 +6,8 @@
 # 2. skyrise_hdb (shp folder)
 # 3. planning area population for density calculation (csv)
 # 4. hdb_info_across_planning_area (shp folder)
-# 5. <hdb prices by planning area> *not in yet
+# 5. hdb_prices_pln_area (shp folder)
+# 6. aedes_info_across_planning_area (shp folder)
 
 library(rgdal) 
 library(maptools) 
@@ -40,6 +41,10 @@ sf_hdb_skyrise_greenery.csr <- st_as_sf(hdb_skyrise.csr)
 sf_hdb_skyrise_greenery.csr <- st_transform(sf_hdb_skyrise_greenery.csr, crs= 3414)
 #head(sf_hdb_skyrise_greenery.csr)
 
+aedes_hotspots <- readOGR("data/aedes_info_across_planning_area")
+sf_aedes_hotspots <- st_make_valid(st_as_sf(aedes_hotspots))
+sf_aedes_hotspots <- st_transform(st_as_sf(aedes_hotspots), crs=3414)
+
 
 # Rasterize mean HDB floor for hypo test
 hdb_floor.r <- raster(nrow = 180, ncols = 360, ext = extent(sf_hdb_info_across_planning_area)) 
@@ -56,6 +61,14 @@ hdb_resale_px.r <- rasterize(sf_hdb_resale_prices, hdb_resale_px.r, field = "rsl
 crs(hdb_resale_px.r) <- crs(sf_hdb_resale_prices) 
 # Raster visualisation
 tm_shape(hdb_resale_px.r) + tm_raster(title = "HDB Resale Price by planning area ('000)") 
+
+# Rasterize Aedes Hotspot for hypo test
+aedeshotspot.r <- raster(nrow = 180, ncols = 360, ext = extent(sf_aedes_hotspots)) 
+aedeshotspot.r <- rasterize(sf_aedes_hotspots, aedeshotspot.r, field = "hotspots")
+
+crs(aedeshotspot.r) <- crs(sf_aedes_hotspots) 
+# Raster visualisation
+tm_shape(aedeshotspot.r) + tm_raster(title = "Aedes Hotspot") 
 
 
 # EDA - population density
@@ -87,6 +100,7 @@ planning_area_hdb.owin <- as.owin(sf_hdb_info_across_planning_area)
 #r_rainfall.im <- as.im(r_rainfall.m) #from rainfall interpolation
 hdb_floor.im <- as.im(hdb_floor.r)
 hdb_resale_px.im <- as.im(hdb_resale_px.r)
+aedeshotspot.im <- as.im(aedeshotspot.r)
 
 
 # Rescale to be based on km
@@ -97,6 +111,7 @@ planning_area_hdb.owin.km <- rescale(planning_area_hdb.owin, 1000, "km")
 #r_rainfall.im.km <- rescale(r_rainfall.im, 1000, "km")
 hdb_floor.im.km <- rescale(hdb_floor.im, 1000, "km")
 hdb_resale_px.im.km <- rescale(hdb_resale_px.im, 1000, "km")
+aedeshotspot.im.km <- rescale(aedeshotspot.im, 1000, "km")
 
 #test <- raster::stack(pop_den.r, hdb_floor.r, hdb_resale_px.r)
 #raster.cor.matrix(test)
@@ -208,6 +223,23 @@ p5 <- min(N.greater5 + 1, n + 1 - N.greater5) / (n +1)
 p5
 
 
+## Alternative Hypothesis 6 - with number of aedes hotspot in planning area
+ann.hdb.r_alt6 <- vector(length=n) 
+for (i in 1:n){ 
+  rand.p.h6 <- rpoint(n=skyrise_hdb_ppp.km$n, f=aedeshotspot.im.km, win=planning_area_hdb.owin.km)
+  ann.hdb.r_alt6[i] <- mean(nndist(rand.p.h6, k=1)) 
+} 
+Window(rand.p.h6) <- planning_area_hdb.owin.km
+plot(rand.p.h6, pch=16, main="Hypothesis Testing (HDB Resale Prices)", cols=rgb(0,0,0,0.5))
+#Histogram of simulated KNN values
+hist(ann.hdb.r_alt6, main="Hypothesis Testing (HDB Resale Prices)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.hdb.r_alt6))
+abline(v=ann.p, col="blue")
+
+N.greater6 <- sum(ann.hdb.r_alt6/1000 > ann.p) 
+p5 <- min(N.greater6 + 1, n + 1 - N.greater6) / (n +1) 
+p5
+
+
 
 ##### ----- Point Poisson & ANOVA ----- #####
 hdb_ppm_h0 <- ppm(skyrise_hdb_ppp.km ~ 1) #H0: not a fn of pop density
@@ -233,15 +265,20 @@ hdb_ppm_4
 hdb_ppm_5 <- ppm(skyrise_hdb_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.im.km + hdb_floor.im.km + hdb_resale_px.im.km)
 hdb_ppm_5
 
+# add aedes hotspots
+hdb_ppm_6 <- ppm(skyrise_hdb_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.im.km + hdb_floor.im.km + hdb_resale_px.im.km + aedeshotspot.im.km)
+hdb_ppm_6
+
 
 #ANOVA Test
-anova(hdb_ppm_h0, hdb_ppm_1, hdb_ppm_2, hdb_ppm_3, hdb_ppm_4, hdb_ppm_5, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_1, hdb_ppm_2, hdb_ppm_3, hdb_ppm_4, hdb_ppm_6, test="LRT")
 
 anova(hdb_ppm_h0, hdb_ppm_1, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_2, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_3, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_4, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_5, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_6, test="LRT")
 
 
 
