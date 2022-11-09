@@ -1,3 +1,20 @@
+# Skyrise Greenery Regression   
+# -------------- Load Libraries --------------
+library(tmap)
+library(tmaptools)
+library(GISTools)
+library(tidyverse)
+library(sf)
+library(rgdal)
+library(raster)
+library(spdep)
+library(dplyr)
+library(maptools)
+library(sp)
+library(spatialreg)
+
+source("constants.R")
+
 ################################################################################
 # ALL SKYRISE GREENERY 
 ################################################################################
@@ -143,7 +160,7 @@ plot(mc)
 
 #The function of Local Moran's I  
 # Mapping Local Moran's I
-tmap_mode('plot')
+tmap_mode('view')
 sp_pln_area_all_skyrise_info.utm$lI <- localmoran(sp_pln_area_all_skyrise_info.utm$n,
                                                   sp_pln_area_all_skyrise_info.lw, 
                                                   zero.policy = TRUE)[, 1]

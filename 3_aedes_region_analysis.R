@@ -92,9 +92,9 @@ row.names(sf_combinded_skyrise_greenery_and_hdb) <- NULL
 # 1. HDB skyrise greenery
 # 2. Non-HDB skyrise greenery
 # 3. HDB non-skyrise greenery
-sf_hdb <- st_as_sf(readOGR("data/skyrise_hdb"))
+external_skyrise_hdb_file <- st_as_sf(readOGR("data/skyrise_hdb"))
 sf_combinded_skyrise_greenery_and_hdb$type <- apply(sf_combinded_skyrise_greenery_and_hdb, MARGIN=1, FUN=function(x) {
-  if (x["ADDRESS"] %in% sf_hdb$ADDRESS_1) {
+  if (x["ADDRESS"] %in% external_skyrise_hdb_file$ADDRESS_1) {
     return("HDB skyrise greenery")
   } else if (x["greenery"] == TRUE) {
     return("Non-HDB skyrise greenery")
