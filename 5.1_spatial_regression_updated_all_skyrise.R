@@ -15,9 +15,79 @@ library(spatialreg)
 
 source("constants.R")
 
-################################################################################
-# ALL SKYRISE GREENERY 
-################################################################################
+# Importing Datasets
+#===============================================================
+
+# 1. Planning Area Island Shape
+#===============================================================
+# Load Dataset
+sg_subzone <- readOGR("data/onemap_subzone")
+sf_subzone <- st_make_valid(st_as_sf(sg_subzone))
+row.names(sf_subzone) <- NULL
+
+# Convert to EPSG:3414
+sf_subzone <- st_transform(sf_subzone, crs=3414)
+
+# Create Planning Area Polygons
+sf_planning_area <- sf_subzone %>% group_by(pln_area) %>% summarise(geometry = st_union(geometry))
+
+# Obtain area of each subzone / planning area
+sf_subzone$area <- st_area(sf_subzone)
+sf_planning_area$area <- st_area(sf_planning_area)
+
+# Convert to kilometers^2 instead so that the values are larger 
+sf_subzone$area_km2 <- sf_subzone$area / 10**6
+sf_planning_area$area_km2 <- sf_planning_area$area / 10**6
+
+# 2. HDB Resale Prices
+#===============================================================
+# Import csv file 
+hdb_prices <- read.csv('data/hdb_data/hdb_add_with_prices_only.csv')
+
+# Aggregate resale prices for all records with the same postal code & 
+# get average price of a HDB block
+hdb_average_prices <- hdb_prices %>% 
+  group_by(POSTAL_CODE) %>% 
+  summarise_at(vars(RESALE_PRICE), list(name = mean))
+
+# Convert to Sf
+sf_hdb_prices <- st_as_sf(hdb_prices, coords = c("LONGITUDE", "LATITUDE"), crs= "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+sf_hdb_prices <- st_transform(sf_hdb_prices, crs= 3414)
+
+
+# 3. Skyrise Greenery Dataset (General)
+#===============================================================
+skyrise_greenery <- readOGR("data/skyrise_greenery")
+sf_skyrise_greenery <- st_make_valid(st_as_sf(skyrise_greenery))
+sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs=3414)
+
+
+# 4. Skyrise Greenery Dataset (HDB only)
+#===============================================================
+hdb_info <- read.csv("data/hdb_data/addresses_full.csv") # read dataset
+hdb_info <- hdb_info %>% drop_na(LATITUDE) # handle the 2 missing values
+hdb_info$ADDRESS <- str_to_lower(hdb_info$ADDRESS) # lowercase Address for Matching
+
+# Convert to Sf
+sf_hdb <- st_as_sf(hdb_info, coords = c("LONGITUDE", "LATITUDE"), crs= "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+sf_hdb <- st_transform(sf_hdb, crs= 3414)
+
+# lowercase address
+sf_skyrise_greenery$address <- apply(sf_skyrise_greenery, MARGIN=1, FUN = function(x) {
+  address = str_to_lower(x["address"])
+  address = str_replace(address, "avenue", "ave")
+  return(str_trim(str_replace(address, "singapore\\s*\\d*", "")))
+})
+
+# Merge by Postal Code or Address
+# 150
+sf_skyrise_hdb <- sf_hdb %>% filter(
+  (POSTAL_CODE %in% sf_skyrise_greenery$post_code) |
+    (ADDRESS %in% sf_skyrise_greenery$address)
+)
+
+# Exploration of all skyrise greenery buildings 
+#===============================================================
 all_skyrise_pln_area_join <- st_join(sf_skyrise_greenery, 
                                      sf_planning_area, 
                                      join = st_within, 
@@ -41,7 +111,8 @@ all_skyrise_pln_area_join$density <- all_skyrise_pln_area_join$n / all_skyrise_p
 
 hist(all_skyrise_pln_area_join$density, main=NULL)
 
-# -------------- Visualisations --------------
+# Visualisations 
+#===============================================================
 # Choropleth Chart showing Density of Skyrise Greenery Buildings across Pln Areas
 tm_shape(all_skyrise_pln_area_join) + 
   tm_fill("density", alpha=1) + 
@@ -56,9 +127,9 @@ tm_shape(all_skyrise_pln_area_join) +
   tm_layout(main.title="Number of Skyrise Greenery Buildings Across Pln Areas",
             legend.position = c("right", "bottom"), legend.text.size= 0.65, asp=1.5, legend.height=0.45)
 
-################################################################################
+
 # 1. Plot Randomly Generated Distributions of Skyrise Greenery 
-################################################################################
+#===============================================================
 # Create .utm file
 sp_pln_area_all_skyrise_info <- sf:::as_Spatial(all_skyrise_pln_area_join)
 sp_pln_area_all_skyrise_info <- subset(sp_pln_area_all_skyrise_info, select=c(pln_area.x, n, density))
@@ -88,11 +159,9 @@ tm_shape(sp_pln_area_all_skyrise_info.utm) +
   tm_polygons(col=vars2, legend.show=FALSE) + 
   tm_layout(title= 1:6, title.position= c("right","top"))
 
-################################################################################
-# PRE-PROCESSING 
-################################################################################
-# 1. Drop PLANNING AREAS without neighbours
-################################################################################
+# Pre-Processing
+# 1. Drop Planning Areas without neighbours
+#===============================================================
 # drop western islands, southern islands, western water catchment, 
 # simpang, north-eastern islands, changi bay, tuas
 sp_pln_area_all_skyrise_info.utm <- sp_pln_area_all_skyrise_info.utm[-c(51, 52, 53, 44, 42, 27, 11), ]
@@ -102,15 +171,13 @@ tm_shape(sp_pln_area_all_skyrise_info.utm) +
   tm_polygons(col='n',title= 'Number of Skyrise Greenery Buildings') + 
   tm_layout(legend.position=c("left", "top"))
 
-################################################################################
 # 2. Create Neighbour List 
-################################################################################
+#===============================================================
 tmap_mode('view')
 tmap_mode('plot')
 
-################################################################################
 # 2A. Queen's Case
-################################################################################
+#===============================================================
 # Planning Area Level
 sp_pln_area_all_skyrise_info.nb <- poly2nb(sp_pln_area_all_skyrise_info.utm)
 sp_pln_area_all_skyrise_info.nb
@@ -125,9 +192,8 @@ tm_shape(sp_pln_area_all_skyrise_info.utm) +
               title= 'Num of Skyrise Greenery Buildings (Queen)') +
   tm_layout(legend.position = c("left", "top"))
 
-################################################################################
 # 2B. Rook's Case
-################################################################################
+#===============================================================
 # Calculate the Rook's case neighbours
 sp_pln_area_all_skyrise_info.nb2 <- poly2nb(sp_pln_area_all_skyrise_info.utm, queen=FALSE)
 
@@ -139,9 +205,8 @@ sp_pln_area_all_skyrise_info.utm$n.lagged.means2 <- lag.listw(sp_pln_area_all_sk
 tm_shape(sp_pln_area_all_skyrise_info.utm) + tm_polygons(col= 'n.lagged.means2',title= 'Num of Skyrise Greenery Buildings (Rook)') +
   tm_layout(legend.position=c("left", "top"))
 
-################################################################################
 # 3. Computing Moran's I Coefficients
-################################################################################
+#===============================================================
 # Moran's I Scatter Plot
 moran.plot(sp_pln_area_all_skyrise_info.utm$n, sp_pln_area_all_skyrise_info.lw)
 
@@ -158,7 +223,8 @@ mc <- moran.mc(sp_pln_area_all_skyrise_info.utm$n,
 
 plot(mc)
 
-#The function of Local Moran's I  
+# The function of Local Moran's I
+#===============================================================
 # Mapping Local Moran's I
 tmap_mode('view')
 sp_pln_area_all_skyrise_info.utm$lI <- localmoran(sp_pln_area_all_skyrise_info.utm$n,
@@ -172,8 +238,8 @@ tm_shape(sp_pln_area_all_skyrise_info.utm,unit='miles') +
   tm_layout(legend.position = c("left", "top"), legend.text.size= 0.6, asp=1.8)
 
 
-#Mapping the p values of Local Moran's I  
-#---------------------------------------------------------------
+# Mapping the p values of Local Moran's I  
+#===============================================================
 sp_pln_area_all_skyrise_info.utm$pval <- localmoran(sp_pln_area_all_skyrise_info.utm$n,
                                                     sp_pln_area_all_skyrise_info.lw, 
                                                     zero.policy = TRUE)[, 5]
@@ -185,20 +251,20 @@ tm_shape(sp_pln_area_all_skyrise_info.utm,unit= 'miles') +
   tm_scale_bar(width=0.15) +
   tm_layout(legend.position = c("left", "top"),asp=1.8)
 
-################################################################################
-# 4. Conducting Spatial Autoregression
-################################################################################
-#SAR model without predictor variable
-#---------------------------------------------------------------
-sar.res2 <- spautolm(n~ 1, listw=sp_pln_area_all_skyrise_info.lw, data=sp_pln_area_all_skyrise_info.utm)
-sar.res2
-
-summary(sar.res2)
-
-#Estimation of standard error of I  
-#---------------------------------------------------------------
-sar.res2$lambda.se
-
-sar.res2$lambda + c(-2,2)*sar.res2$lambda.se
+# Not used since there is no spatial autocorrelation in the data
+# # 4. Conducting Spatial Autoregression
+# #===============================================================
+# #SAR model without predictor variable
+# #---------------------------------------------------------------
+# sar.res2 <- spautolm(n~ 1, listw=sp_pln_area_all_skyrise_info.lw, data=sp_pln_area_all_skyrise_info.utm)
+# sar.res2
+# 
+# summary(sar.res2)
+# 
+# #Estimation of standard error of I  
+# #---------------------------------------------------------------
+# sar.res2$lambda.se
+# 
+# sar.res2$lambda + c(-2,2)*sar.res2$lambda.se
 
 
