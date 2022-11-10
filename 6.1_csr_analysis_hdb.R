@@ -31,8 +31,8 @@ sf_hdb_resale_prices$rsl_prc_thousands <- sf_hdb_resale_prices$rsl_prc/1000
 hdb_info_across_planning_area <- readOGR("data/hdb_info_across_planning_area")
 hdb_info_across_planning_area@data[is.na(hdb_info_across_planning_area@data)] = 0 # replace na values on floor with 0
 sf_hdb_info_across_planning_area <- st_make_valid(st_as_sf(hdb_info_across_planning_area))
-sf_hdb_info_across_planning_area <- st_transform(st_as_sf(hdb_info_across_planning_area), crs=3414)
-#head(sf_hdb_info_across_planning_area)
+sf_hdb_info_across_planning_area$year[sf_hdb_info_across_planning_area$year==0] <- 2019
+sf_hdb_info_across_planning_area$dur_existed <- 2019-sf_hdb_info_across_planning_area$year
 
 hdb_skyrise.csr <- readOGR("data/skyrise_hdb")
 hdb_skyrise.csr@coords <- hdb_skyrise.csr@coords[, 1:2] # Drop Z coord
@@ -53,6 +53,15 @@ hdb_floor.r <- rasterize(sf_hdb_info_across_planning_area, hdb_floor.r, field = 
 crs(hdb_floor.r) <- crs(sf_hdb_info_across_planning_area) 
 # Raster visualisation
 tm_shape(hdb_floor.r) + tm_raster(title = "Mean Floor by planning area") 
+
+# Rasterize completion year for hypo test
+hdb_completion.r <- raster(nrow = 180, ncols = 360, ext = extent(sf_hdb_info_across_planning_area)) 
+hdb_completion.r <- rasterize(sf_hdb_info_across_planning_area, hdb_completion.r, field = "dur_existed")
+
+crs(hdb_completion.r) <- crs(sf_hdb_info_across_planning_area) 
+# Raster visualisation
+tm_shape(hdb_completion.r) + tm_raster(title = "Years Present") 
+
 
 # Rasterize resale price for hypo test
 hdb_resale_px.r <- raster(nrow = 180, ncols = 360, ext = extent(sf_hdb_resale_prices)) 
@@ -100,6 +109,7 @@ planning_area_hdb.owin <- as.owin(sf_hdb_info_across_planning_area)
 #r_rainfall.im <- as.im(r_rainfall.m) #from rainfall interpolation
 hdb_floor.im <- as.im(hdb_floor.r)
 hdb_resale_px.im <- as.im(hdb_resale_px.r)
+hdb_completion.im <- as.im(hdb_completion.r)
 aedeshotspot.im <- as.im(aedeshotspot.r)
 
 
@@ -112,9 +122,7 @@ planning_area_hdb.owin.km <- rescale(planning_area_hdb.owin, 1000, "km")
 hdb_floor.im.km <- rescale(hdb_floor.im, 1000, "km")
 hdb_resale_px.im.km <- rescale(hdb_resale_px.im, 1000, "km")
 aedeshotspot.im.km <- rescale(aedeshotspot.im, 1000, "km")
-
-#test <- raster::stack(pop_den.r, hdb_floor.r, hdb_resale_px.r)
-#raster.cor.matrix(test)
+hdb_completion.im.km <- rescale(hdb_completion.im, 1000, "km")
 
 
 ann.p <- mean(nndist(skyrise_hdb_ppp.km, k=1)) 
@@ -122,8 +130,8 @@ ann.p #0.3827644km
 
 
 ## ---------- Running CSR ------------ ##
-# Null Hypothesis (Base model) - location of HDB skyrise greenery consistent with CSR
 n <- 599L 
+# Null Hypothesis (Base model) - location of HDB skyrise greenery consistent with CSR
 ann.hdb.r <- vector(length = n) 
 for (i in 1:n){ 
   rand.p <- rpoint(n=skyrise_hdb_ppp.km$n, win=planning_area_hdb.owin.km) 
@@ -230,15 +238,31 @@ for (i in 1:n){
   ann.hdb.r_alt6[i] <- mean(nndist(rand.p.h6, k=1)) 
 } 
 Window(rand.p.h6) <- planning_area_hdb.owin.km
-plot(rand.p.h6, pch=16, main="Hypothesis Testing (HDB Resale Prices)", cols=rgb(0,0,0,0.5))
+plot(rand.p.h6, pch=16, main="Hypothesis Testing (Aedes Hotspot)", cols=rgb(0,0,0,0.5))
 #Histogram of simulated KNN values
-hist(ann.hdb.r_alt6, main="Hypothesis Testing (HDB Resale Prices)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.hdb.r_alt6))
+hist(ann.hdb.r_alt6, main="Hypothesis Testing (Aedes Hotspot)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.hdb.r_alt6))
 abline(v=ann.p, col="blue")
 
 N.greater6 <- sum(ann.hdb.r_alt6/1000 > ann.p) 
-p5 <- min(N.greater6 + 1, n + 1 - N.greater6) / (n +1) 
-p5
+p6 <- min(N.greater6 + 1, n + 1 - N.greater6) / (n +1) 
+p6
 
+
+## Alternative Hypothesis 7 - with avg hdb completion year
+ann.hdb.r_alt7 <- vector(length=n) 
+for (i in 1:n){ 
+  rand.p.h7 <- rpoint(n=skyrise_hdb_ppp.km$n, f=hdb_completion.im.km, win=planning_area_hdb.owin.km)
+  ann.hdb.r_alt7[i] <- mean(nndist(rand.p.h7, k=1)) 
+} 
+Window(rand.p.h7) <- planning_area_hdb.owin.km
+plot(rand.p.h7, pch=16, main="Hypothesis Testing (HDB Age)", cols=rgb(0,0,0,0.5))
+#Histogram of simulated KNN values
+hist(ann.hdb.r_alt7, main="Hypothesis Testing (HDB Age)", las=1, breaks=40, col="bisque", xlim=range(ann.p, ann.hdb.r_alt7))
+abline(v=ann.p, col="blue")
+
+N.greater7 <- sum(ann.hdb.r_alt7/1000 > ann.p) 
+p7 <- min(N.greater7 + 1, n + 1 - N.greater7) / (n +1) 
+p7
 
 
 ##### ----- Point Poisson & ANOVA ----- #####
@@ -266,12 +290,41 @@ hdb_ppm_5 <- ppm(skyrise_hdb_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.
 hdb_ppm_5
 
 # add aedes hotspots
-hdb_ppm_6 <- ppm(skyrise_hdb_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.im.km + hdb_floor.im.km + hdb_resale_px.im.km + aedeshotspot.im.km)
+hdb_ppm_6 <- ppm(skyrise_hdb_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.im.km + 
+                   hdb_floor.im.km + hdb_resale_px.im.km + aedeshotspot.im.km)
 hdb_ppm_6
 
+# add hdb completion
+hdb_ppm_7 <- ppm(skyrise_hdb_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.im.km + 
+                   hdb_floor.im.km + hdb_resale_px.im.km + aedeshotspot.im.km + hdb_completion.im.km)
+hdb_ppm_7
 
+
+## With one variable only
+hdb_ppm_popden <- hdb_ppm_1
+hdb_ppm_popden
+
+hdb_ppm_temp <- ppm(skyrise_hdb_ppp.km ~ r_temp.im.km)
+hdb_ppm_temp
+
+hdb_ppm_rainfall <- ppm(skyrise_hdb_ppp.km ~ r_rainfall.im.km)
+hdb_ppm_rainfall
+
+hdb_ppm_floor <- ppm(skyrise_hdb_ppp.km ~ hdb_floor.im.km)
+hdb_ppm_floor
+
+hdb_ppm_price <- ppm(skyrise_hdb_ppp.km ~ hdb_resale_px.im.km)
+hdb_ppm_price
+
+hdb_ppm_aedes <- ppm(skyrise_hdb_ppp.km ~ aedeshotspot.im.km)
+hdb_ppm_aedes
+
+hdb_ppm_age <- ppm(skyrise_hdb_ppp.km ~ hdb_completion.im.km)
+hdb_ppm_age
+
+#===============================================================
 #ANOVA Test
-anova(hdb_ppm_h0, hdb_ppm_1, hdb_ppm_2, hdb_ppm_3, hdb_ppm_4, hdb_ppm_6, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_1, hdb_ppm_2, hdb_ppm_3, hdb_ppm_4, hdb_ppm_5, hdb_ppm_6, hdb_ppm_7, test="LRT")
 
 anova(hdb_ppm_h0, hdb_ppm_1, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_2, test="LRT")
@@ -279,8 +332,15 @@ anova(hdb_ppm_h0, hdb_ppm_3, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_4, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_5, test="LRT")
 anova(hdb_ppm_h0, hdb_ppm_6, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_7, test="LRT")
 
-
+anova(hdb_ppm_h0, hdb_ppm_popden, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_temp, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_rainfall, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_floor, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_price, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_aedes, test="LRT")
+anova(hdb_ppm_h0, hdb_ppm_age, test="LRT")
 
 
 

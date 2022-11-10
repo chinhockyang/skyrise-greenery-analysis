@@ -92,7 +92,6 @@ ann.p #avg nn distance is 379.6014m
 
 ## ---------- Running CSR ------------ ##
 n <- 599L 
-
 # Null Hypothesis (Base model) - location of skyrise greenery consistent with CSR
 ann.r <- vector(length = n) 
 for (i in 1:n){ 
@@ -175,8 +174,26 @@ ppm_2
 ppm_3 <- ppm(skyrise_ppp.km ~ pop_den.im.km + r_temp.im.km + r_rainfall.im.km)
 ppm_3
 
+
+## With one variable only
+ppm_popden <- ppm_1
+ppm_popden
+
+ppm_temp <- ppm(skyrise_ppp.km ~ r_temp.im.km)
+ppm_temp
+
+ppm_rainfall <- ppm(skyrise_ppp.km ~ r_rainfall.im.km)
+ppm_rainfall
+
+#===============================================================
 anova(ppm_h0, ppm_1, ppm_2, ppm_3, test="LRT")
+anova(ppm_h0, ppm_popden, ppm_temp, ppm_rainfall, test="LRT")
 
 anova(ppm_h0, ppm_1, test="LRT")
 anova(ppm_h0, ppm_2, test="LRT")
 anova(ppm_h0, ppm_3, test="LRT")
+
+anova(ppm_h0, ppm_popden, test="LRT")
+anova(ppm_h0, ppm_temp, test="LRT")
+anova(ppm_h0, ppm_rainfall, test="LRT")
+
