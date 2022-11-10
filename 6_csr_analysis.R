@@ -160,7 +160,7 @@ p3
 
 ##### ----- Point Poisson & ANOVA ----- #####
 #===============================================================
-ppm_h0 <- ppm(skyrise_ppp.km ~ 1) #H0: not a fn of pop density
+ppm_h0 <- ppm(skyrise_ppp.km ~ 1) #H0: CSR
 ppm_h0
 
 ppm_1 <- ppm(skyrise_ppp.km ~ pop_den.im.km) #H1
@@ -193,6 +193,7 @@ anova(ppm_h0, ppm_1, test="LRT")
 anova(ppm_h0, ppm_2, test="LRT")
 anova(ppm_h0, ppm_3, test="LRT")
 
+## With one variable only
 anova(ppm_h0, ppm_popden, test="LRT")
 anova(ppm_h0, ppm_temp, test="LRT")
 anova(ppm_h0, ppm_rainfall, test="LRT")
