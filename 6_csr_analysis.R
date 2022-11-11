@@ -1,10 +1,12 @@
+# Complete Spatial Randomness Study (Skyrise Greenery)
+
 # Load Libraries and Variables
 #===============================================================
 
 # Data Files Required:
 # 1. onemap_subzone (shp folder)
 # 2. skyrise_greenery (shp folder)
-# 3. planning area population for density calculation (csv)
+# 3. total planning area population 2019 (csv) [total_pop_planningarea2019.csv -> for population density calculation]
 # 4. skyrise_hdb (shp folder)
 
 library(rgdal) 

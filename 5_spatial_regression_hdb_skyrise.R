@@ -1,5 +1,13 @@
-# Skyrise Greenery Regression   
-# -------------- Load Libraries --------------
+# Skyrise Greenery Spatial autocorrelation  (HDB Skyrise Greenery)
+
+# Load Libraries and Variables
+#===============================================================
+
+# Data Files Required
+# 1. onemap_subzone (shp folder)
+# 2. skyrise_greenery (shp folder)
+# 3. hdb_add_with_prices_only (csv)
+
 library(tmap)
 library(tmaptools)
 library(GISTools)
@@ -65,7 +73,7 @@ sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs=3414)
 # 4. Skyrise Greenery Dataset (HDB only)
 
 #===============================================================
-hdb_info <- read.csv("data/hdb_data/addresses_full.csv") # read dataset
+hdb_info <- read.csv("data/addresses_full.csv") # read dataset
 
 hdb_info <- hdb_info %>% drop_na(LATITUDE) # handle the 2 missing values
 hdb_info$ADDRESS <- str_to_lower(hdb_info$ADDRESS) # lowercase Address for Matching

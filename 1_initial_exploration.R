@@ -1,8 +1,9 @@
+# Initial Exploration of Skyrise Greenery
 
 # Load Libraries and Variables
 #===============================================================
 
-# Data Files RequiredL
+# Data Files Required
 # 1. onemap_subzone (shp folder)
 # 2. skyrise_greenery (shp folder)
 

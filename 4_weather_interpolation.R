@@ -1,3 +1,4 @@
+# Weather (Temperature and Rainfall) Interpolation
 
 # Load Libraries and Variables
 #===============================================================
@@ -5,8 +6,8 @@
 # Data Files RequiredL
 # 1. onemap_subzone (shp folder)
 # 2. weather_stations (shp folder)
-# 3. groupbystation_rainfall_2019.csv
-# 4. groupbystation_temp_2019.csv
+# 3. grouped_rainfall_2019.csv
+# 4. grouped_temp_2019.csv
 
 library(rgdal)
 library(dplyr)

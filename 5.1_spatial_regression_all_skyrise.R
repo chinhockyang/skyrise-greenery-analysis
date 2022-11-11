@@ -1,5 +1,13 @@
-# Skyrise Greenery Regression   
-# -------------- Load Libraries --------------
+# Skyrise Greenery Spatial autocorrelation   (All Skyrise Greenery)
+
+# Load Libraries and Variables
+#===============================================================
+
+# Data Files Required
+# 1. onemap_subzone (shp folder)
+# 2. skyrise_greenery (shp folder)
+# 3. hdb_add_with_prices_only (csv)
+
 library(tmap)
 library(tmaptools)
 library(GISTools)
@@ -42,7 +50,7 @@ sf_planning_area$area_km2 <- sf_planning_area$area / 10**6
 # 2. HDB Resale Prices
 #===============================================================
 # Import csv file 
-hdb_prices <- read.csv('data/hdb_data/hdb_add_with_prices_only.csv')
+hdb_prices <- read.csv('data/hdb_add_with_prices_only.csv')
 
 # Aggregate resale prices for all records with the same postal code & 
 # get average price of a HDB block
@@ -64,7 +72,7 @@ sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs=3414)
 
 # 4. Skyrise Greenery Dataset (HDB only)
 #===============================================================
-hdb_info <- read.csv("data/hdb_data/addresses_full.csv") # read dataset
+hdb_info <- read.csv("data/addresses_full.csv") # read dataset
 hdb_info <- hdb_info %>% drop_na(LATITUDE) # handle the 2 missing values
 hdb_info$ADDRESS <- str_to_lower(hdb_info$ADDRESS) # lowercase Address for Matching
 

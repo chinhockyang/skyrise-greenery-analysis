@@ -1,4 +1,11 @@
-# ------------------- Grouping weather data by quarters -----------------------
+# Data Preprocessing to aggregate weather data across planning area
+
+# Load Libraries and Variables
+#===============================================================
+
+# Data Files RequiredL
+# 1. daily_temperature_2018_2020 (csv)
+# 2. weather_stations (shp folder)
 
 library(rgdal)
 library(dplyr)
@@ -7,10 +14,12 @@ library(tmap)
 library(ggplot2)
 
 weather_stations <- read.csv('data/daily_temperature_2018_2020.csv')
-
 weather_stations_map <- readOGR("data/weather_stations")
 sf_weather_stations <- st_as_sf(weather_stations_map)
 head(sf_weather_stations)
+
+# Grouping weather data by quarters
+#===============================================================
 
 ## ------------------- Temperature -------------------  ##
 # Retrieve relevant temperature columns for use
@@ -31,10 +40,9 @@ temp_2019 <- temp_data %>% filter(year==2019)
 # get 1 temp (avg) for each station
 temp_grouped <- temp_2019 %>% group_by(station) %>% summarise_at(vars(mean_temp), list(mean))
 
-# add coordinates
+# add coordinates and export
 #temp_grouped <- merge(temp_grouped, sf_weather_stations, all.x=T )
-
-write.csv(temp_grouped,"data/groupbystation_temp_2019.csv", row.names = FALSE)
+# write.csv(temp_grouped,"data/groupbystation_temp_2019.csv", row.names = FALSE)
 
 
 ## ------------------- Rainfall -------------------  ##
@@ -55,8 +63,7 @@ rain_2019 <- rain_data %>% filter(year==2019)
 # yearly rainfall sum for each station
 rain_grouped <- rain_2019 %>% group_by(station) %>% summarise_at(vars(rainfall), list(sum))
 
-# add coordinates
+# add coordinates and export
 # rain_grouped <- merge(rain_grouped, sf_weather_stations, all.x=T )
-
-write.csv(rain_grouped,"data/groupbystation_rainfall_2019.csv", row.names = FALSE)
+# write.csv(rain_grouped,"data/groupbystation_rainfall_2019.csv", row.names = FALSE)
 

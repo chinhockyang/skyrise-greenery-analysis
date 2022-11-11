@@ -1,12 +1,13 @@
-# Constant Variables
+# Constant Variables and Functions (Utility File)
+
+# Load Libraries and Variables
+#===============================================================
 library(fMultivar)
 
-# -------------- Global Setup --------------
+# tm_style
+#===============================================================
 global.fontfamily = "Palatino"
 
-# -------------- Full Singapore Map's Setup --------------
-
-# tm_style
 # options: "gray", "natural", "cobalt", "col_blind", "albatross", "beaver", "bw", "classic", "watercolor", "red", "black" 
 global.style = "col_blind"
 
@@ -23,6 +24,9 @@ tm_compass.position = c("right", "top")
 tm_compass.show.labels = 3
 tm_compass.size = 2
 
+
+# Point Pattern Analysis
+#===============================================================
 # For KDE
 choose_bw <- function(spdf) { 
   X <- st_coordinates(spdf) 

@@ -1,3 +1,4 @@
+# Exploration of HDB (Skyrise Greenery and other attributes)
 
 # Load Libraries and Variables
 #===============================================================
@@ -82,20 +83,6 @@ sf_hdb$type <- apply(sf_hdb, MARGIN=1, FUN=function(x) {
 # Number of HDB in dataset
 nrow(sf_hdb)
 dplyr::count(sf_hdb, type, sort=TRUE)
-
-
-# Density Plot
-# [KIV]: Move to bottom for Point Pattern Analysis
-choose_bw <- function(spdf) { 
-  X <- st_coordinates(spdf) 
-  sigma <- c(sd(X[,1]),sd(X[,2])) * (2 / (3 * nrow(X))) ^ (1/6) 
-  return(sigma/1000)
-}
-
-hdb_dens <- smooth_map(sf_hdb, bandwidth = choose_bw(sf_hdb$geometry))
-tmap_mode('view')
-  tm_shape(hdb_dens$raster) + tm_raster() +
-  tm_shape(sf_subzone) +tm_borders()
 
 
 # Pie Chart of Types of HDB
