@@ -42,7 +42,7 @@ sf_planning_area$area_km2 <- sf_planning_area$area / 10**6
 # 2. HDB Resale Prices
 ################################################################################
 # Import csv file 
-hdb_prices <- read.csv('data/hdb_data/hdb_add_with_prices_only.csv')
+hdb_prices <- read.csv('data/hdb_add_with_prices_only.csv')
 
 # Aggregate resale prices for all records with the same postal code & 
 # get average price of a HDB block
@@ -64,7 +64,7 @@ sf_skyrise_greenery <- st_transform(sf_skyrise_greenery, crs=3414)
 ################################################################################
 # 4. Skyrise Greenery Dataset (HDB only)
 ################################################################################
-hdb_info <- read.csv("data/hdb_data/addresses_full.csv") # read dataset
+hdb_info <- read.csv("data/addresses_full.csv") # read dataset
 hdb_info <- hdb_info %>% drop_na(LATITUDE) # handle the 2 missing values
 hdb_info$ADDRESS <- str_to_lower(hdb_info$ADDRESS) # lowercase Address for Matching
 
@@ -164,11 +164,18 @@ hdb_prices_pln_area_join_with_prices <- st_join(sf_planning_area,
 
 hdb_prices_pln_area_join_with_prices <- subset(hdb_prices_pln_area_join_with_prices, select=-c(pln_area.y))
 
-# Choropleth Chart showing Number of Skyrise Greenery HDBs across Pln Areas
+# Choropleth Chart showing Resale Prices across Pln Areas
 tm_shape(hdb_prices_pln_area_join_with_prices) + 
-  tm_fill("resale_price", alpha=1, title="Resale Prices of HDBs") + 
+  tm_fill("resale_price", alpha=1, title="Resale Prices of HDBs ($)") + 
   tm_borders(alpha=0.9) +
-  tm_layout(title = "Average Resale Prices of HDBs Across Pln Areas")
+  tm_shape(sf_skyrise_hdb) + tm_symbols(col="darkgreen", size=0.3, alpha=0.6) +
+  tm_layout(
+    title = "Resale Prices of HDBs Across Planning Areas", 
+    title.size = tm_layout.title.size, title.position=tm_layout.title.position, title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, inner.margins=tm_layout.inner.margins
+  ) +  
+  tm_legend(position=c("right", "bottom"), title.size = 1, text.size = 0.8) +
+  tm_scale_bar(position=c("right", "bottom")) + tm_compass(type=tm_compass.type, position=tm_compass.position, show.labels=tm_compass.show.labels, size=tm_compass.size)
+
 
 # Save file
 # st_write(hdb_prices_pln_area_join_with_prices, "hdb_prices_pln_area.shp", delete_layer = T)

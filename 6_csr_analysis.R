@@ -5,6 +5,7 @@
 # 1. onemap_planningarea (shp folder)
 # 2. skyrise_greenery (shp folder)
 # 3. planning area population for density calculation (csv)
+# 4. skyrise_hdb (shp folder)
 
 library(rgdal) 
 library(maptools) 
@@ -42,6 +43,12 @@ sf_planning_area$area_km <- set_units(sf_planning_area$area, "km^2")
 # calculate pop density (in km^2)
 sf_planning_area$pop_density <- sf_planning_area$Population / sf_planning_area$area_km
 
+hdb_skyrise.csr <- readOGR("data/skyrise_hdb")
+hdb_skyrise.csr@coords <- hdb_skyrise.csr@coords[, 1:2] # Drop Z coord
+hdb_skyrise.csr@data <- hdb_skyrise.csr@data[,-(1:32)]
+sf_hdb_skyrise_greenery.csr <- st_as_sf(hdb_skyrise.csr)
+sf_hdb_skyrise_greenery.csr <- st_transform(sf_hdb_skyrise_greenery.csr, crs= 3414)
+
 
 # Rasterize population density for hypothesis test
 pop_den.r <- raster(nrow = 180, ncols = 360, ext = extent(sf_planning_area)) 
@@ -55,18 +62,18 @@ tm_shape(pop_den.r) + tm_raster(title = "Population density by planning area")
 #===============================================================
 # Generate choropleth map for population density
 tm_shape(sf_planning_area) + tm_polygons("pop_density", title="Population Density (km^2)") +
+  tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.05) + tm_borders(col="grey", alpha=0.5) +
+  tm_shape(sf_hdb_skyrise_greenery.csr) + tm_symbols(col="darkgreen", size=0.3, alpha=0.6) +
   tm_layout(
     title = "Population Density by Planning Area", 
     title.size = tm_layout.title.size, title.position=tm_layout.title.position, 
     title.fontface=tm_layout.title.fontface, title.fontfamily=tm_layout.title.fontfamily, 
     inner.margins=tm_layout.inner.margins
   ) +  
-  tm_legend(position=c("right", "bottom"), title.size = 0.6, text.size = 0.5) +
+  tm_legend(position=c("right", "bottom"), title.size = 0.8, text.size = 0.7) +
   tm_scale_bar(position=c("right", "bottom")) + 
   tm_compass(type=tm_compass.type, position=tm_compass.position, 
-             show.labels=tm_compass.show.labels, size=tm_compass.size) +
-  tm_shape(sf_planning_area) + tm_fill(col="white", alpha = 0.05) + tm_borders(col="grey", alpha=0.5) 
-
+             show.labels=tm_compass.show.labels, size=tm_compass.size)
 
 
 # Hypothesis Test 
